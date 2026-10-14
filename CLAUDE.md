@@ -46,6 +46,7 @@ Vite 8 + React 19 + TypeScript + Tailwind 4 + shadcn/ui (Radix, style "Nova", ne
 - shadcn components first; theme tokens in `src/index.css` (`--pain-*`, `--status-*`, one accent `--primary`).
 - One thumb: primary actions low on the screen, tap targets ≥ 44 px (`h-11`). Check layouts at 360 px wide.
 - Calm, not gamified. Pain colour always comes with its word.
+- **Visual references.** Moodboard: `../pisada-moodboard`. Read its `MOODBOARD.md` (screen map) and `CLAUDE.md` before any UI work; open the images in `refs/` for the screen you're changing.
 
 ## Testing tips
 
