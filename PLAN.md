@@ -128,7 +128,14 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 - [x] Run log: ladder step and clean yes/no (steps in the `run_steps` table; "clean" can also be answered in the next morning's check-in; never auto-advances)
 - [x] Week strip showing what's done, skipped and pending (tap a day to open it)
 - [x] PWA manifest so it installs on the phone, then deploy to GitHub Pages (footprint icon; service worker caches nothing, so updates show on next open)
-- [ ] Load the month 2 plan (Claude, through the connector)
+- [x] Load the month 2 plan (Claude, through the connector). 76 sessions, 14 Oct → 15 Nov, block `2026-10 month2`, loaded by the claude.ai project using docs/COACH.md
+
+**Phase 1 done 14 Oct 2026.**
+
+### Backlog (found while loading Month 2)
+- [ ] **Move a session to another date.** Runs float and Pilates moves with the teacher; a "move to date" action on a card keeps the data honest
+- [ ] **Test cards write to `tests`.** `kind = 'test'` should ask for an L/R value (e.g. heel-raise reps) instead of putting the number in a comment
+- [ ] **Check video metadata on the phone.** `duration_s` shows as a badge and `flags` show under the link (19 of 21 videos now have durations)
 
 **Until it's live,** keep logging month 2 anywhere (notes app). Don't let the build get in the way of training.
 
