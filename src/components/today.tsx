@@ -1,4 +1,5 @@
 import { LogOutIcon } from 'lucide-react'
+import { MorningCheck } from '@/components/morning-check'
 import { SessionCard } from '@/components/session-card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -8,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 
 export function Today() {
   const date = todayISO()
-  const { sessions, setStatus, setComment } = useDay(date)
+  const { sessions, setStatus, setPain, setComment } = useDay(date)
 
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col gap-4 p-4">
@@ -28,6 +29,8 @@ export function Today() {
         </Button>
       </header>
 
+      <MorningCheck date={date} />
+
       {sessions === undefined ? (
         <>
           <Skeleton className="h-56 rounded-xl" />
@@ -43,6 +46,7 @@ export function Today() {
             key={s.id}
             session={s}
             onStatus={(status) => setStatus(s, status)}
+            onPain={(area, score) => setPain(s, area, score)}
             onComment={(comment) => setComment(s, comment)}
           />
         ))

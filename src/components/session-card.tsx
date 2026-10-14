@@ -18,9 +18,11 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer'
+import { PainScale } from '@/components/pain-scale'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { DaySession, Status, Video } from '@/hooks/use-day'
+import { painAreaFor, type PainArea } from '@/lib/pain-areas'
 
 const STATUSES: { value: Status; label: string }[] = [
   { value: 'done', label: 'Done' },
@@ -61,16 +63,24 @@ function VideoLink({ video }: { video: Video }) {
 export function SessionCard({
   session,
   onStatus,
+  onPain,
   onComment,
 }: {
   session: DaySession
   onStatus: (status: Status | null) => void
+  onPain: (area: PainArea, score: number | null) => void
   onComment: (comment: string) => Promise<boolean>
 }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const comment = session.log?.comment
+  const painArea = painAreaFor(session.kind)
+  const showPain = painArea && session.log && session.log.status !== 'skipped'
+  const painScore =
+    session.log?.symptoms.find(
+      (s) => s.body_area === painArea?.body_area && s.timing === 'during',
+    )?.score ?? null
 
   function openComment() {
     setDraft(comment ?? '')
@@ -122,6 +132,15 @@ export function SessionCard({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+
+        {showPain && (
+          <PainScale
+            label={painArea.label}
+            value={painScore}
+            onChange={(score) => onPain(painArea, score)}
+            disabled={!session.log?.id}
+          />
+        )}
 
         {session.log && (
           <button

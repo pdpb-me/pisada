@@ -49,15 +49,17 @@ The thermometer dashboard was public. This app holds health data, so:
 |---|---|
 | Base colour: shadcn **neutral** (or **zinc**) | All surfaces and text |
 | `--primary` | One accent only, for the primary action (Done) |
-| `--pain-low` (green), 0–3 | Matches the "≤3/10 is acceptable" rule |
-| `--pain-mid` (amber), 4–6 | Hold or back off |
-| `--pain-high` (red), 7–10 | Stop |
+| `--pain-low` (green), 0–3: None, Mild | Matches the "≤3/10 is acceptable" rule |
+| `--pain-mid` (amber), 4–6: Moderate | Hold or back off |
+| `--pain-high` (red), 7–10: Severe, Unbearable | Stop |
 | `--status-done` / `--status-partial` / `--status-skipped` | Week strip dots |
 | Font: Geist or Inter, system fallback | One family; differentiate by weight |
 | Radius: shadcn default (`0.625rem`) | Keep consistent |
 | Spacing: Tailwind 4-pt scale | No custom spacing values |
 
-Pain colours always come with the number, never colour alone.
+Pain colours always come with the word, never colour alone.
+
+**Pain is asked as 5 words, not 11 numbers** (decided 14 Oct, like the Bearable app): None, Mild, Moderate, Severe, Unbearable. They are stored as 0, 2, 5, 8, 10 in `symptoms.score`, so the 0–10 bands and the "≤3/10 is acceptable" rule still work for charts and coaching. Arch = right foot.
 
 ### Component map
 | Screen element | shadcn component |
@@ -65,7 +67,7 @@ Pain colours always come with the number, never colour alone.
 | App shell + bottom nav (Today · Week · Progress · Library) | custom bar using `Button` (ghost variant) |
 | Session card | `Card` |
 | Done / Partial / Skipped | `ToggleGroup` |
-| Pain 0–10 | `Slider` with the value shown, or an 11-step `ToggleGroup` (test both on the phone) |
+| Pain (5 levels) | 5-step `ToggleGroup`, words always shown |
 | Comment | `Textarea` inside a `Drawer` (bottom sheet) |
 | Morning arch check-in | `Drawer`, opened automatically once |
 | Run log (ladder step, clean y/n) | `Select` + `Switch` |
@@ -119,7 +121,7 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 ### Phase 1 · MVP: the daily loop (target: in use by ~22 Oct)
 - [x] Schema, RLS policies and email-code login (14 Oct. Codes are 8 digits, sent via Gmail SMTP)
 - [ ] **Today** screen: sessions, tappable video links, Done/Partial/Skipped, comment
-- [ ] Pain inputs: arch during, neck. A one-time morning prompt: "How's the arch this morning?" after a run or tendon day
+- [x] Pain inputs: arch during, neck. A one-time morning prompt: "How's the arch this morning?" after a run or tendon day
 - [ ] Run log: ladder step and clean yes/no
 - [ ] Week strip showing what's done, skipped and pending
 - [ ] PWA manifest so it installs on the phone, then deploy to GitHub Pages

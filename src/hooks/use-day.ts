@@ -3,7 +3,8 @@ import { toast } from 'sonner'
 import type { Tables } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 
-export type SessionLog = Tables<'session_logs'>
+export type Symptom = Tables<'symptoms'>
+export type SessionLog = Tables<'session_logs'> & { symptoms: Symptom[] }
 export type Video = Tables<'videos'>
 export type Status = 'done' | 'partial' | 'skipped'
 
@@ -19,7 +20,7 @@ export function useDay(date: string) {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('plan_sessions')
-      .select('*, session_logs(*)')
+      .select('*, session_logs(*, symptoms(*))')
       .eq('date', date)
       .order('slot')
       .order('created_at')
@@ -62,7 +63,7 @@ export function useDay(date: string) {
           : {
               ...s,
               log: status
-                ? ({ ...(s.log ?? { comment: null }), status } as SessionLog)
+                ? ({ symptoms: [], ...(s.log ?? { comment: null }), status } as SessionLog)
                 : null,
             },
       ),
@@ -82,6 +83,44 @@ export function useDay(date: string) {
       toast.error(`Not saved: ${error.message}`)
       return
     }
+    if (status === 'skipped' && session.log?.symptoms.length) {
+      await supabase.from('symptoms').delete().eq('session_log_id', session.log.id)
+    }
+    await load()
+  }
+
+  // Pain during a session (one score per body area). null clears it.
+  async function setPain(
+    session: DaySession,
+    area: { body_area: string; side: string | null },
+    score: number | null,
+  ) {
+    const log = session.log
+    if (!log?.id) return // the log is still being saved; the scale is shown once it exists
+
+    const { error } =
+      score == null
+        ? await supabase
+            .from('symptoms')
+            .delete()
+            .eq('session_log_id', log.id)
+            .eq('body_area', area.body_area)
+            .eq('timing', 'during')
+        : await supabase.from('symptoms').upsert(
+            {
+              session_log_id: log.id,
+              date: session.date,
+              body_area: area.body_area,
+              side: area.side,
+              timing: 'during',
+              score,
+            },
+            { onConflict: 'session_log_id,body_area,timing' },
+          )
+    if (error) {
+      toast.error(`Pain not saved: ${error.message}`)
+      return
+    }
     await load()
   }
 
@@ -99,5 +138,5 @@ export function useDay(date: string) {
     return true
   }
 
-  return { sessions, setStatus, setComment }
+  return { sessions, setStatus, setPain, setComment }
 }
