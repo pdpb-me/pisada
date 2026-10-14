@@ -1,39 +1,49 @@
 import { useState } from 'react'
-import { MessageSquareIcon, PlayIcon, TriangleAlertIcon } from 'lucide-react'
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  CircleDashedIcon,
+  MinusIcon,
+  PlayIcon,
+  TriangleAlertIcon,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer'
-import { PainScale } from '@/components/pain-scale'
-import { RunLog } from '@/components/run-log'
-import { Textarea } from '@/components/ui/textarea'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { LogDrawer } from '@/components/log-drawer'
 import type { DaySession, Status, Video } from '@/hooks/use-day'
 import type { RunStep } from '@/hooks/use-run-steps'
+import { painBand, painLabel, type PainBand } from '@/lib/pain'
 import { painAreaFor, type PainArea } from '@/lib/pain-areas'
+import { cn } from '@/lib/utils'
 
-const STATUSES: { value: Status; label: string }[] = [
-  { value: 'done', label: 'Done' },
-  { value: 'partial', label: 'Partial' },
-  { value: 'skipped', label: 'Skipped' },
-]
+// Small status icons instead of coloured blocks
+const STATUS_ICON: Record<Status, { icon: typeof CheckIcon; label: string; className: string }> = {
+  done: { icon: CheckIcon, label: 'Done', className: 'text-status-done' },
+  partial: { icon: CircleDashedIcon, label: 'Partial', className: 'text-status-partial' },
+  skipped: { icon: MinusIcon, label: 'Skipped', className: 'text-status-skipped' },
+}
+
+const PAIN_DOT: Record<PainBand, string> = {
+  low: 'bg-pain-low',
+  mid: 'bg-pain-mid',
+  high: 'bg-pain-high',
+}
 
 function minutes(seconds: number) {
   return `${Math.max(1, Math.round(seconds / 60))} min`
+}
+
+function capitalise(word: string) {
+  return word.charAt(0).toUpperCase() + word.slice(1)
 }
 
 function VideoLink({ video }: { video: Video }) {
@@ -62,6 +72,49 @@ function VideoLink({ video }: { video: Video }) {
   )
 }
 
+// One grey line once the session is logged: "✓ Done · Arch ● Mild · Step 3, clean"
+function LogSummary({
+  session,
+  painArea,
+  painScore,
+}: {
+  session: DaySession
+  painArea: PainArea | null
+  painScore: number | null
+}) {
+  const log = session.log!
+  const status = STATUS_ICON[log.status as Status]
+  const run = session.activity
+  const Icon = status.icon
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground">
+        <Icon className={cn('size-4 shrink-0', status.className)} />
+        <span className="font-medium text-foreground">{status.label}</span>
+        {painArea && painScore != null && (
+          <>
+            <span aria-hidden>·</span>
+            <span>{painArea.short}</span>
+            <span className={cn('size-2 rounded-full', PAIN_DOT[painBand(painScore)])} />
+            <span className="text-foreground">{painLabel(painScore)}</span>
+          </>
+        )}
+        {run?.run_step != null && (
+          <>
+            <span aria-hidden>·</span>
+            <span>
+              Step {run.run_step}
+              {run.clean != null && (run.clean ? ', clean' : ', not clean')}
+            </span>
+          </>
+        )}
+      </span>
+      {log.comment && <span className="line-clamp-2 text-muted-foreground">{log.comment}</span>}
+    </div>
+  )
+}
+
 export function SessionCard({
   session,
   onStatus,
@@ -78,125 +131,64 @@ export function SessionCard({
   onComment: (comment: string) => Promise<boolean>
 }) {
   const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState('')
-  const [saving, setSaving] = useState(false)
-  const comment = session.log?.comment
   const painArea = painAreaFor(session.kind)
-  const showPain = painArea && session.log && session.log.status !== 'skipped'
   const painScore =
     session.log?.symptoms.find(
       (s) => s.body_area === painArea?.body_area && s.timing === 'during',
     )?.score ?? null
 
-  function openComment() {
-    setDraft(comment ?? '')
-    setOpen(true)
-  }
-
-  async function saveComment() {
-    setSaving(true)
-    const ok = await onComment(draft)
-    setSaving(false)
-    if (ok) setOpen(false)
-  }
-
   return (
     <Card>
       <CardHeader>
-        <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          {session.slot} · {session.kind}
-        </span>
         <CardTitle className="text-lg">{session.title}</CardTitle>
+        <CardAction>
+          <Badge variant="outline">{capitalise(session.kind)}</Badge>
+        </CardAction>
         {session.instructions && (
           <CardDescription>{session.instructions}</CardDescription>
         )}
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {session.videos.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {session.videos.map((v) => (
-              <VideoLink key={v.yt_id} video={v} />
-            ))}
-          </div>
-        )}
 
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          spacing={0}
-          value={session.log?.status ?? ''}
-          onValueChange={(v) => onStatus((v || null) as Status | null)}
-          className="w-full"
-        >
-          {STATUSES.map((s) => (
-            <ToggleGroupItem
-              key={s.value}
-              value={s.value}
-              className="h-11 flex-1 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-            >
-              {s.label}
-            </ToggleGroupItem>
+      {session.videos.length > 0 && (
+        <CardContent className="flex flex-col gap-2">
+          {session.videos.map((v) => (
+            <VideoLink key={v.yt_id} video={v} />
           ))}
-        </ToggleGroup>
+        </CardContent>
+      )}
 
-        {showPain && (
-          <PainScale
-            label={painArea.label}
-            value={painScore}
-            onChange={(score) => onPain(painArea, score)}
-            disabled={!session.log?.id}
-          />
-        )}
-
-        {session.activity && session.log?.status !== 'skipped' && (
-          <RunLog activity={session.activity} steps={runSteps} onChange={onRun} />
-        )}
-
-        {session.log && (
+      {session.log ? (
+        <CardFooter className="p-0">
           <button
             type="button"
-            onClick={openComment}
-            className="flex min-h-11 items-start gap-2 rounded-md text-left text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => setOpen(true)}
+            className="flex min-h-11 w-full items-center gap-2 px-4 py-3 text-left"
+            aria-label={`Edit the log for ${session.title}`}
           >
-            <MessageSquareIcon className="mt-0.5 size-4 shrink-0" />
-            {comment ? (
-              <span className="text-foreground">{comment}</span>
-            ) : (
-              <span>Add a comment</span>
-            )}
+            <LogSummary session={session} painArea={painArea} painScore={painScore} />
+            <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
           </button>
-        )}
-      </CardContent>
+        </CardFooter>
+      ) : (
+        <CardContent>
+          <Button size="lg" className="h-11 w-full" onClick={() => setOpen(true)}>
+            Log session
+          </Button>
+        </CardContent>
+      )}
 
-      <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerContent>
-          <div className="mx-auto w-full max-w-md">
-            <DrawerHeader>
-              <DrawerTitle>{session.title}</DrawerTitle>
-              <DrawerDescription>How did it go?</DrawerDescription>
-            </DrawerHeader>
-            <div className="px-4">
-              <Textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="e.g. arch tight on the last set, eased after"
-                rows={4}
-                autoFocus
-              />
-            </div>
-            <DrawerFooter>
-              <Button size="lg" className="h-11" onClick={saveComment} disabled={saving}>
-                {saving ? 'Saving…' : 'Save comment'}
-              </Button>
-              <DrawerClose asChild>
-                <Button variant="ghost" className="h-11">
-                  Cancel
-                </Button>
-              </DrawerClose>
-            </DrawerFooter>
-          </div>
-        </DrawerContent>
-      </Drawer>
+      <LogDrawer
+        open={open}
+        onOpenChange={setOpen}
+        session={session}
+        runSteps={runSteps}
+        painArea={painArea}
+        painScore={painScore}
+        onStatus={onStatus}
+        onPain={onPain}
+        onRun={onRun}
+        onComment={onComment}
+      />
     </Card>
   )
 }

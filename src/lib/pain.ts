@@ -22,3 +22,8 @@ export function painLabel(score: number) {
   const level = painLevelFor(score)
   return PAIN_LEVELS.find((l) => l.score === level)!.label
 }
+
+export function painBand(score: number): PainBand {
+  const level = painLevelFor(score)
+  return PAIN_LEVELS.find((l) => l.score === level)!.band
+}

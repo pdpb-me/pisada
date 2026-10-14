@@ -82,28 +82,57 @@ function DaySessions({
     onStatusSaved()
   }
 
+  if (sessions === undefined) {
+    return (
+      <>
+        <Skeleton className="h-40 rounded-xl" />
+        <Skeleton className="h-40 rounded-xl" />
+      </>
+    )
+  }
+  if (sessions.length === 0) {
+    return <p className="py-12 text-center text-muted-foreground">Nothing planned.</p>
+  }
+
   return (
-    <>
-      {sessions === undefined ? (
-        <>
-          <Skeleton className="h-56 rounded-xl" />
-          <Skeleton className="h-56 rounded-xl" />
-        </>
-      ) : sessions.length === 0 ? (
-        <p className="py-12 text-center text-muted-foreground">Nothing planned.</p>
-      ) : (
-        sessions.map((s) => (
-          <SessionCard
-            key={s.id}
-            session={s}
-            runSteps={runSteps}
-            onStatus={(status) => changeStatus(s, status)}
-            onPain={(area, score) => setPain(s, area, score)}
-            onRun={(changes) => setRun(s, changes)}
-            onComment={(comment) => setComment(s, comment)}
-          />
-        ))
+    <SessionList
+      sessions={sessions}
+      renderCard={(s) => (
+        <SessionCard
+          key={s.id}
+          session={s}
+          runSteps={runSteps}
+          onStatus={(status) => changeStatus(s, status)}
+          onPain={(area, score) => setPain(s, area, score)}
+          onRun={(changes) => setRun(s, changes)}
+          onComment={(comment) => setComment(s, comment)}
+        />
       )}
-    </>
+    />
   )
+}
+
+const SLOTS = [
+  { slot: 'am', label: 'Morning' },
+  { slot: 'pm', label: 'Evening' },
+]
+
+// Sessions under a Morning / Evening heading; a slot with nothing planned is left out.
+export function SessionList({
+  sessions,
+  renderCard,
+}: {
+  sessions: DaySession[]
+  renderCard: (session: DaySession) => React.ReactNode
+}) {
+  return SLOTS.map(({ slot, label }) => {
+    const inSlot = sessions.filter((s) => s.slot === slot)
+    if (inSlot.length === 0) return null
+    return (
+      <section key={slot} className="flex flex-col gap-3">
+        <h2 className="pt-2 text-sm font-medium text-muted-foreground">{label}</h2>
+        {inSlot.map(renderCard)}
+      </section>
+    )
+  })
 }

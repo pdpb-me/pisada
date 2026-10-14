@@ -65,10 +65,10 @@ Pain colours always come with the word, never colour alone.
 | Screen element | shadcn component |
 |---|---|
 | App shell + bottom nav (Today · Week · Progress · Library) | custom bar using `Button` (ghost variant) |
-| Session card | `Card` |
+| Session card | `Card`: title, instructions, videos; "Log session" button or a grey summary once logged |
 | Done / Partial / Skipped | `ToggleGroup` |
 | Pain (5 levels) | 5-step `ToggleGroup`, words always shown |
-| Comment | `Textarea` inside a `Drawer` (bottom sheet) |
+| Log drawer (status, pain, run, comment) | `Drawer` (bottom sheet) with `Textarea` for the comment |
 | Morning arch check-in | `Drawer`, opened automatically once |
 | Run log (ladder step, clean y/n) | `Select` + `Switch` |
 | Week strip | custom row of status dots + `Tooltip` |
