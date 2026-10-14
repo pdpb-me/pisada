@@ -2,14 +2,17 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { Tables } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
+import { lastRunStep } from '@/hooks/use-run-steps'
 
 export type Symptom = Tables<'symptoms'>
 export type SessionLog = Tables<'session_logs'> & { symptoms: Symptom[] }
 export type Video = Tables<'videos'>
+export type Activity = Tables<'activities'>
 export type Status = 'done' | 'partial' | 'skipped'
 
 export type DaySession = Tables<'plan_sessions'> & {
   log: SessionLog | null
+  activity: Activity | null // the run log, for run sessions
   videos: Video[]
 }
 
@@ -20,12 +23,12 @@ export function useDay(date: string) {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('plan_sessions')
-      .select('*, session_logs(*, symptoms(*))')
+      .select('*, session_logs(*, symptoms(*)), activities(*)')
       .eq('date', date)
       .order('slot')
       .order('created_at')
     if (error) {
-      toast.error(`Couldn't load today: ${error.message}`)
+      toast.error(`Couldn't load this day: ${error.message}`)
       setSessions([])
       return
     }
@@ -38,9 +41,10 @@ export function useDay(date: string) {
     }
 
     setSessions(
-      data.map(({ session_logs, ...s }) => ({
+      data.map(({ session_logs, activities, ...s }) => ({
         ...s,
         log: session_logs,
+        activity: activities,
         // keep the order the plan lists them in
         videos: s.video_ids.flatMap((id) => videos.filter((v) => v.yt_id === id)),
       })),
@@ -73,6 +77,7 @@ export function useDay(date: string) {
       ? await supabase
           .from('session_logs')
           .upsert(
+            // oxlint-disable-next-line react/purity -- runs on tap, not during render
             { plan_session_id: session.id, status, logged_at: new Date().toISOString() },
             { onConflict: 'plan_session_id' },
           )
@@ -85,6 +90,35 @@ export function useDay(date: string) {
     }
     if (status === 'skipped' && session.log?.symptoms.length) {
       await supabase.from('symptoms').delete().eq('session_log_id', session.log.id)
+    }
+    if (session.kind === 'run') await syncRun(session, status)
+    await load()
+  }
+
+  // A run that happened (done/partial) gets a run log, starting at the step of
+  // the last logged run. Skipped or un-logged: the run log goes.
+  async function syncRun(session: DaySession, status: Status | null) {
+    const ran = status === 'done' || status === 'partial'
+    if (ran && !session.activity) {
+      const { error } = await supabase.from('activities').insert({
+        plan_session_id: session.id,
+        date: session.date,
+        sport: 'run',
+        run_step: await lastRunStep(),
+        source: 'manual',
+      })
+      if (error) toast.error(`Run log not saved: ${error.message}`)
+    } else if (!ran && session.activity) {
+      await supabase.from('activities').delete().eq('id', session.activity.id)
+    }
+  }
+
+  async function setRun(session: DaySession, changes: { run_step?: number; clean?: boolean | null }) {
+    if (!session.activity) return
+    const { error } = await supabase.from('activities').update(changes).eq('id', session.activity.id)
+    if (error) {
+      toast.error(`Run log not saved: ${error.message}`)
+      return
     }
     await load()
   }
@@ -138,5 +172,5 @@ export function useDay(date: string) {
     return true
   }
 
-  return { sessions, setStatus, setPain, setComment }
+  return { sessions, setStatus, setPain, setRun, setComment }
 }

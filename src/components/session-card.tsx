@@ -19,9 +19,11 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer'
 import { PainScale } from '@/components/pain-scale'
+import { RunLog } from '@/components/run-log'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { DaySession, Status, Video } from '@/hooks/use-day'
+import type { RunStep } from '@/hooks/use-run-steps'
 import { painAreaFor, type PainArea } from '@/lib/pain-areas'
 
 const STATUSES: { value: Status; label: string }[] = [
@@ -63,12 +65,16 @@ function VideoLink({ video }: { video: Video }) {
 export function SessionCard({
   session,
   onStatus,
+  runSteps,
   onPain,
+  onRun,
   onComment,
 }: {
   session: DaySession
+  runSteps: RunStep[]
   onStatus: (status: Status | null) => void
   onPain: (area: PainArea, score: number | null) => void
+  onRun: (changes: { run_step?: number; clean?: boolean | null }) => void
   onComment: (comment: string) => Promise<boolean>
 }) {
   const [open, setOpen] = useState(false)
@@ -140,6 +146,10 @@ export function SessionCard({
             onChange={(score) => onPain(painArea, score)}
             disabled={!session.log?.id}
           />
+        )}
+
+        {session.activity && session.log?.status !== 'skipped' && (
+          <RunLog activity={session.activity} steps={runSteps} onChange={onRun} />
         )}
 
         {session.log && (

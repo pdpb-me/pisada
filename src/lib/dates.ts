@@ -20,3 +20,16 @@ export function longDate(iso: string) {
     month: 'long',
   })
 }
+
+export function addDays(iso: string, days: number) {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() + days)
+  return toISODate(d)
+}
+
+// Monday to Sunday of the week that contains this date
+export function weekOf(iso: string) {
+  const d = new Date(`${iso}T12:00:00`)
+  const monday = addDays(iso, -((d.getDay() + 6) % 7))
+  return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+}

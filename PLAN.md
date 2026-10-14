@@ -101,6 +101,9 @@ activities        id, date, sport (run|bike|hike|pilates|…), duration_s, dista
 
 tests             id, date, test ('sl_heel_raise'), side, value, unit
 
+run_steps         step, label, reps, run_min, walk_min, total_run_min,
+                  warmup_min, cooldown_min, block   ← the run-walk ladder; steps 6+ added by the coaching chat
+
 reviews           id, week_start, summary, decisions      ← written by Claude at the weekly check-in
 ```
 
@@ -122,8 +125,8 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 - [x] Schema, RLS policies and email-code login (14 Oct. Codes are 8 digits, sent via Gmail SMTP)
 - [ ] **Today** screen: sessions, tappable video links, Done/Partial/Skipped, comment
 - [x] Pain inputs: arch during, neck. A one-time morning prompt: "How's the arch this morning?" after a run or tendon day
-- [ ] Run log: ladder step and clean yes/no
-- [ ] Week strip showing what's done, skipped and pending
+- [x] Run log: ladder step and clean yes/no (steps in the `run_steps` table; "clean" can also be answered in the next morning's check-in; never auto-advances)
+- [x] Week strip showing what's done, skipped and pending (tap a day to open it)
 - [ ] PWA manifest so it installs on the phone, then deploy to GitHub Pages
 - [ ] Load the month 2 plan (Claude, through the connector)
 

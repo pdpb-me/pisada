@@ -70,7 +70,7 @@ export type Database = {
           {
             foreignKeyName: "activities_plan_session_id_fkey"
             columns: ["plan_session_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "plan_sessions"
             referencedColumns: ["id"]
           },
@@ -139,6 +139,51 @@ export type Database = {
           summary?: string | null
           user_id?: string
           week_start?: string
+        }
+        Relationships: []
+      }
+      run_steps: {
+        Row: {
+          block: string | null
+          cooldown_min: number
+          created_at: string
+          id: string
+          label: string
+          reps: number
+          run_min: number
+          step: number
+          total_run_min: number
+          user_id: string
+          walk_min: number
+          warmup_min: number
+        }
+        Insert: {
+          block?: string | null
+          cooldown_min?: number
+          created_at?: string
+          id?: string
+          label: string
+          reps: number
+          run_min: number
+          step: number
+          total_run_min: number
+          user_id?: string
+          walk_min: number
+          warmup_min?: number
+        }
+        Update: {
+          block?: string | null
+          cooldown_min?: number
+          created_at?: string
+          id?: string
+          label?: string
+          reps?: number
+          run_min?: number
+          step?: number
+          total_run_min?: number
+          user_id?: string
+          walk_min?: number
+          warmup_min?: number
         }
         Relationships: []
       }

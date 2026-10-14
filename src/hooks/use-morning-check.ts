@@ -1,29 +1,27 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { toISODate } from '@/lib/dates'
+import { addDays } from '@/lib/dates'
 import { supabase } from '@/lib/supabase'
 
 // Kinds that load the arch, so the next morning is worth asking about
 const ARCH_LOAD_KINDS = ['run', 'tendon']
 
-function dayBefore(iso: string) {
-  const d = new Date(`${iso}T12:00:00`)
-  d.setDate(d.getDate() - 1)
-  return toISODate(d)
-}
 
 // "How's the arch this morning?" is asked when yesterday had a run or tendon
 // session that was done or partly done. One answer per morning.
+// If yesterday had a run, it also asks whether that run was clean (when it
+// wasn't already set on the run card).
 export function useMorningCheck(date: string) {
   const [needed, setNeeded] = useState(false)
   const [answer, setAnswer] = useState<{ id: string; score: number } | null>(null)
+  const [run, setRun] = useState<{ id: string; clean: boolean | null } | null>(null)
 
   const load = useCallback(async () => {
-    const [yesterday, today] = await Promise.all([
+    const [yesterday, today, yesterdayRun] = await Promise.all([
       supabase
         .from('plan_sessions')
         .select('id, session_logs!inner(status)')
-        .eq('date', dayBefore(date))
+        .eq('date', addDays(date, -1))
         .in('kind', ARCH_LOAD_KINDS)
         .in('session_logs.status', ['done', 'partial'])
         .limit(1),
@@ -34,9 +32,16 @@ export function useMorningCheck(date: string) {
         .eq('body_area', 'arch')
         .eq('timing', 'next_morning')
         .limit(1),
+      supabase
+        .from('activities')
+        .select('id, clean')
+        .eq('date', addDays(date, -1))
+        .eq('sport', 'run')
+        .limit(1),
     ])
     setNeeded((yesterday.data?.length ?? 0) > 0)
     setAnswer(today.data?.[0] ?? null)
+    setRun(yesterdayRun.data?.[0] ?? null)
   }, [date])
 
   useEffect(() => {
@@ -68,5 +73,16 @@ export function useMorningCheck(date: string) {
     return true
   }
 
-  return { needed, answer, save }
+  async function saveClean(clean: boolean | null) {
+    if (!run) return false
+    const { error } = await supabase.from('activities').update({ clean }).eq('id', run.id)
+    if (error) {
+      toast.error(`Not saved: ${error.message}`)
+      return false
+    }
+    await load()
+    return true
+  }
+
+  return { needed, answer, save, run, saveClean }
 }
