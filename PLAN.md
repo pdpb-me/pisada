@@ -117,7 +117,7 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 - [x] Connect the **Supabase connector in claude.ai** (Settings → Connectors). This is what lets the coaching chat read your logs. *(Already connected to your account, checked 14 Oct. Make sure it's switched on in the "Pisada do Pedro" project.)*
 
 ### Phase 1 · MVP: the daily loop (target: in use by ~22 Oct)
-- [ ] Schema, RLS policies and email-code login (schema + RLS done 14 Oct: `supabase/migrations/`; login next)
+- [x] Schema, RLS policies and email-code login (14 Oct. Codes are 8 digits, sent via Gmail SMTP)
 - [ ] **Today** screen: sessions, tappable video links, Done/Partial/Skipped, comment
 - [ ] Pain inputs: arch during, neck. A one-time morning prompt: "How's the arch this morning?" after a run or tendon day
 - [ ] Run log: ladder step and clean yes/no
