@@ -1,0 +1,114 @@
+# Pisada: guide for the coaching chat
+
+You (Claude, in the claude.ai project "Pisada do Pedro") read and write Pedro's training data through the **Supabase connector**. The Pisada app on Pedro's phone shows exactly what is in these tables, so follow the conventions below. Otherwise the app won't display a row, or will display it wrongly.
+
+- **Supabase project:** `pisada` (project ref `swubnxbzjqjeuiwlauwi`)
+- **Pedro's user id:** `8cbe648a-0d47-40f1-9a38-5cb26f37fd24`
+- **Time zone:** Europe (CET/CEST). All `date` columns are Pedro's local calendar date, `YYYY-MM-DD`.
+
+## Golden rules
+
+1. **Every insert sets `user_id = '8cbe648a-0d47-40f1-9a38-5cb26f37fd24'`.** The app fills it in automatically, but through the connector you must set it yourself, or the insert fails.
+2. **Never change the ladder step on Pedro's behalf** unless that's decided in the weekly check-in. The app never auto-advances either.
+3. **Before deleting anything other than `block = 'sample'` rows,** show Pedro what will be deleted and ask.
+4. **Don't change the table structure** (no `create`, `alter` or `drop`). Schema changes are made in Claude Code, in the repo, so the app and the database stay in step.
+5. Pedro is the only user. Row Level Security protects the data from the app side; the connector bypasses it, so be careful.
+
+## Tables
+
+### `plan_sessions`: what's planned
+
+| column | notes |
+|---|---|
+| `date` | local date |
+| `slot` | `'am'` or `'pm'` (the app shows AM first) |
+| `kind` | free text, but these values drive the app: **`tendon`, `run`, `stability`** ask "Right arch, during" pain; **`neck`** asks "Neck, during" pain; **`run`** also gets the run log (ladder step + clean). Other kinds (`mobility`, `pilates`, `test`, …) show with no pain question. |
+| `title` | short, e.g. `Arch strength` |
+| `instructions` | one or two sentences shown on the card |
+| `video_ids` | array of YouTube ids, e.g. `'{CMD0zoHT1AI}'`. A link only shows if that id exists in `videos`. |
+| `block` | which plan it belongs to, e.g. `'2026-10 month2'`. Makes a block easy to find, replace or delete. |
+
+Example: one day of Month 2.
+
+```sql
+insert into plan_sessions (date, slot, kind, title, instructions, video_ids, block, user_id) values
+ ('2026-10-19', 'am', 'tendon', 'Arch strength', 'Heel-raised holds 5 × 45 s, then toe yoga 2 × 10. Pain ≤ 3/10 is OK.', '{CMD0zoHT1AI}', '2026-10 month2', '8cbe648a-0d47-40f1-9a38-5cb26f37fd24'),
+ ('2026-10-19', 'pm', 'run',    'Run–walk ladder', 'Current ladder step. Stop if arch pain goes above 3/10.', '{}', '2026-10 month2', '8cbe648a-0d47-40f1-9a38-5cb26f37fd24');
+```
+
+### `session_logs`: what happened (written by the app)
+
+One row per planned session at most: `plan_session_id` (unique), `status` (`done` | `partial` | `skipped`), `comment`, `logged_at`.
+
+### `symptoms`: pain
+
+| column | notes |
+|---|---|
+| `body_area` | `arch`, `neck`, … (the arch is the **right** foot) |
+| `side` | `L`, `R`, `C` (centre, for the neck) |
+| `score` | 0–10. **The app asks 5 words and stores: None = 0, Mild = 2, Moderate = 5, Severe = 8, Unbearable = 10.** So ≤ 3 = acceptable, 4–6 = hold / back off, 7+ = stop. If you write a score yourself, any 0–10 value is shown in its band. |
+| `timing` | `during` (tied to a session log via `session_log_id`), `next_morning` (the morning check-in, `session_log_id` empty), `general` |
+
+### `activities`: runs and other sport
+
+| column | notes |
+|---|---|
+| `sport` | `run`, `bike`, `hike`, … |
+| `run_step` | ladder step number (see `run_steps`) |
+| `clean` | `true` / `false` / empty (= not decided yet). Pedro can set it on the run card or in the next morning's check-in. |
+| `plan_session_id` | the planned run it belongs to (unique). The app creates this row when a run session is marked done/partial. |
+| `source` | `manual` (app) or `suunto_screenshot` (you, from a screenshot) |
+| `duration_s`, `distance_m`, `hr_avg`, `elevation_m` | fill from Suunto screenshots |
+
+**From a Suunto screenshot:** if the run was planned, **update** the existing row for that `plan_session_id` (the app may have made it already) instead of inserting a second one. Set `source = 'suunto_screenshot'`.
+
+### `run_steps`: the run-walk ladder
+
+`step`, `label` (shown as "Step N — label"), `reps`, `run_min`, `walk_min`, `total_run_min`, `warmup_min` (default 5), `cooldown_min` (default 3), `block`. One row per step number. To add step 6:
+
+```sql
+insert into run_steps (step, label, reps, run_min, walk_min, total_run_min, block, user_id)
+values (6, '2 × (10′ jog / 2′ walk)', 2, 10, 2, 20, '2026-11 month3', '8cbe648a-0d47-40f1-9a38-5cb26f37fd24');
+```
+
+Progression rules (display only): clean = no arch niggle, or ≤ 3/10 during that's back to baseline next morning. Up a step only after 2 consecutive clean runs. A niggle ≤ 3 that lingers holds the step; > 3/10 drops one step.
+
+### `videos`, `tests`, `reviews`
+
+- **`videos`:** `yt_id`, `title`, `duration_s`, `notes` (what's in it), `flags` (safety notes; the app shows them under the link). Add a video here before using its id in a plan.
+- **`tests`:** `date`, `test` (e.g. `sl_heel_raise`), `side`, `value`, `unit`.
+- **`reviews`:** one per week (`week_start` = Monday): `summary` and `decisions`, written by you at the weekly check-in.
+
+## Useful queries
+
+**The week at a glance** (change the dates):
+
+```sql
+select p.date, p.slot, p.kind, p.title, l.status, l.comment,
+       s.score as pain_during, a.run_step, a.clean
+from plan_sessions p
+left join session_logs l on l.plan_session_id = p.id
+left join symptoms s on s.session_log_id = l.id and s.timing = 'during'
+left join activities a on a.plan_session_id = p.id
+where p.date between '2026-10-19' and '2026-10-25'
+order by p.date, p.slot;
+```
+
+**Morning arch check-ins:**
+
+```sql
+select date, score from symptoms
+where body_area = 'arch' and timing = 'next_morning'
+order by date desc limit 14;
+```
+
+## The sample week (remove before loading the real plan)
+
+While the app was being built, a made-up week (12–18 Oct 2026) was loaded with `block = 'sample'`, plus a few sample logs. To remove it:
+
+```sql
+delete from activities where notes = 'Sample';
+delete from plan_sessions where block = 'sample';  -- also removes their logs and pain scores
+```
+
+Pedro's own test taps on 14 Oct were made on sample sessions, so they go too. The morning check-in answer of 14 Oct (`timing = 'next_morning'`) is kept, because it's not tied to a session.
