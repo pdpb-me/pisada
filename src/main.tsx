@@ -10,3 +10,8 @@ createRoot(document.getElementById('root')!).render(
     <Toaster position="top-center" />
   </StrictMode>,
 )
+
+// Makes the app installable on the phone (see public/sw.js: it caches nothing)
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+}

@@ -127,7 +127,7 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 - [x] Pain inputs: arch during, neck. A one-time morning prompt: "How's the arch this morning?" after a run or tendon day
 - [x] Run log: ladder step and clean yes/no (steps in the `run_steps` table; "clean" can also be answered in the next morning's check-in; never auto-advances)
 - [x] Week strip showing what's done, skipped and pending (tap a day to open it)
-- [ ] PWA manifest so it installs on the phone, then deploy to GitHub Pages
+- [x] PWA manifest so it installs on the phone, then deploy to GitHub Pages (footprint icon; service worker caches nothing, so updates show on next open)
 - [ ] Load the month 2 plan (Claude, through the connector)
 
 **Until it's live,** keep logging month 2 anywhere (notes app). Don't let the build get in the way of training.
