@@ -9,6 +9,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Login } from '@/components/login'
+import { useSession } from '@/hooks/use-session'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
 // Temporary design check page: shows the Pisada tokens on real shadcn
@@ -44,17 +47,22 @@ const dotClass = {
   pending: 'border border-muted-foreground/40',
 }
 
-function App() {
+function DesignCheck({ email }: { email?: string }) {
   const [status, setStatus] = useState('')
   const [pain, setPain] = useState('')
 
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col gap-4 p-4">
-      <header className="pt-2">
-        <h1 className="text-2xl font-semibold">Pisada</h1>
-        <p className="text-sm text-muted-foreground">
-          Design check: tokens and components
-        </p>
+      <header className="flex items-start justify-between pt-2">
+        <div>
+          <h1 className="text-2xl font-semibold">Pisada</h1>
+          <p className="text-sm text-muted-foreground">
+            Design check · logged in as {email}
+          </p>
+        </div>
+        <Button variant="ghost" onClick={() => supabase.auth.signOut()}>
+          Log out
+        </Button>
       </header>
 
       <div className="flex justify-between px-1">
@@ -130,6 +138,13 @@ function App() {
       </Button>
     </main>
   )
+}
+
+function App() {
+  const session = useSession()
+  if (session === undefined) return null // still checking, a split second
+  if (session === null) return <Login />
+  return <DesignCheck email={session.user.email} />
 }
 
 export default App
