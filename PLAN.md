@@ -111,7 +111,7 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 ### Phase 0 · Setup (≈30 min, you plus Claude Code)
 - [x] Create a new Supabase project (EU region) → `pisada`, ref `swubnxbzjqjeuiwlauwi`, eu-west-1 (Ireland), free plan. Created 14 Oct
 - [ ] Create a GitHub repo `pisada` and add this file as `PLAN.md` (local folder: `F:\Passatempo_PB\personal-log`)
-- [ ] Open the repo in Claude Code and install the Supabase plugin (and the shadcn MCP server, if available)
+- [x] Open the repo in Claude Code and install the Supabase plugin (and the shadcn MCP server, if available) (Supabase connector already on; shadcn MCP in `.mcp.json`)
 - [x] Scaffold Vite + React + TS + Tailwind, run `shadcn init`, and apply the DLS tokens (shadcn style "Nova", Radix, neutral, Geist; accent = blue)
 - [x] Set up a GitHub Action that builds and deploys to Pages (`.github/workflows/deploy.yml`)
 - [x] Connect the **Supabase connector in claude.ai** (Settings → Connectors). This is what lets the coaching chat read your logs. *(Already connected to your account, checked 14 Oct. Make sure it's switched on in the "Pisada do Pedro" project.)*
