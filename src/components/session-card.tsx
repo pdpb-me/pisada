@@ -19,7 +19,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { ExerciseDrawer, ExerciseRow, ExerciseThumbnail } from '@/components/exercise-drawer'
 import { LogDrawer } from '@/components/log-drawer'
+import { exerciseFor } from '@/exercises/catalog'
 import type { DaySession, Status, Video } from '@/hooks/use-day'
 import type { RunStep } from '@/hooks/use-run-steps'
 import { painBand, painLabel, type PainBand } from '@/lib/pain'
@@ -167,6 +169,14 @@ export function SessionCard({
   onComment: (comment: string) => Promise<boolean>
 }) {
   const [open, setOpen] = useState(false)
+  // The exercise shown large; kept while the sheet closes so it doesn't blank out
+  const [exSlug, setExSlug] = useState<string | null>(null)
+  const [exOpen, setExOpen] = useState(false)
+  const showExercise = (slug: string) => {
+    setExSlug(slug)
+    setExOpen(true)
+  }
+  const exercises = session.exercises.filter((slug) => exerciseFor(slug)) // unknown slugs show nothing
   const painArea = painAreaFor(session.kind)
   const painScore =
     session.log?.symptoms.find(
@@ -178,18 +188,27 @@ export function SessionCard({
       <CardHeader className="gap-x-3">
         <CardTitle className="text-lg">{session.title}</CardTitle>
         <Badge variant="outline">{capitalise(session.kind)}</Badge>
-        {session.videos.length > 0 && (
+        {exercises.length > 0 ? (
           <CardAction>
-            <VideoThumbnail video={session.videos[0]} />
+            <ExerciseThumbnail slug={exercises[0]} onOpen={() => showExercise(exercises[0])} className="w-28" />
           </CardAction>
+        ) : (
+          session.videos.length > 0 && (
+            <CardAction>
+              <VideoThumbnail video={session.videos[0]} />
+            </CardAction>
+          )
         )}
         {session.instructions && (
           <CardDescription className="col-span-full mt-2">{session.instructions}</CardDescription>
         )}
       </CardHeader>
 
-      {session.videos.length > 0 && (
+      {(exercises.length > 0 || session.videos.length > 0) && (
         <CardContent className="flex flex-col gap-2">
+          {exercises.map((slug) => (
+            <ExerciseRow key={slug} slug={slug} onOpen={() => showExercise(slug)} />
+          ))}
           {session.videos.map((v) => (
             <VideoLink key={v.yt_id} video={v} />
           ))}
@@ -227,6 +246,13 @@ export function SessionCard({
         onPain={onPain}
         onRun={onRun}
         onComment={onComment}
+      />
+      <ExerciseDrawer
+        slug={exSlug}
+        open={exOpen}
+        onOpenChange={setExOpen}
+        sessionTitle={session.title}
+        instructions={session.instructions}
       />
     </Card>
   )

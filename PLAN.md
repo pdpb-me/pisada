@@ -73,6 +73,7 @@ Pain colours always come with the word, never colour alone.
 | Run log (ladder step, clean y/n) | `Select` + `Switch` |
 | Week strip | custom row of status dots + `Tooltip` |
 | Video links | Small thumbnail of the first video (`AspectRatio`) beside the title, plus `Button` (link variant) per video with duration as a `Badge` |
+| Exercise figures | Line-figure SVG (`src/exercises/`): 16:9 thumbnail in `CardAction` + a row per exercise; tap opens a `Drawer` (90% height) with the figure, today's plan, tempo, cues, don'ts, setup |
 | Library search/filter | `Command` (search) + `Badge` (tags) |
 | Progress charts | shadcn **Charts** (Recharts-based) |
 | Confirmations | `Sonner` toast |

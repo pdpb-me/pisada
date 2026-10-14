@@ -26,7 +26,7 @@ You (Claude, in the claude.ai project "Pisada do Pedro") read and write Pedro's 
 | `title` | short, e.g. `Arch strength` |
 | `instructions` | one or two sentences shown on the card |
 | `video_ids` | array of YouTube ids, e.g. `'{CMD0zoHT1AI}'`. A link only shows if that id exists in `videos`. |
-| `exercises` | array of exercise slugs, in display order, e.g. `'{chin_nod,t_hold,thoracic_ext_chair}'`. Each shows a line-drawing figure on the card; tapping it opens the figure large with cues and setup. Valid slugs: `chin_nod`, `t_hold`, `thoracic_ext_chair`, `ball_squeeze_heel_raise`, `sl_heel_raise_step`, `banded_inversion`, `sl_heel_hold_towel`, `sl_heel_raise_test`. **An unknown slug shows nothing**, and adding a new exercise needs a code change (the catalog lives in the app's code, not the database). Defaults to `'{}'`. Keep `instructions` filled too: it's the fallback. |
+| `exercises` | array of exercise slugs, in display order, e.g. `'{chin_nod,t_hold,thoracic_ext_chair}'`. Each shows a line-drawing figure on the card; tapping it opens the figure large with cues and setup. Valid slugs: `chin_nod`, `t_hold`, `thoracic_ext_chair`, `ball_squeeze_heel_raise`, `sl_heel_raise_step`, `banded_inversion`, `sl_heel_hold_towel`, `sl_heel_raise_test`. **An unknown slug shows nothing**, and adding a new exercise needs a code change (the catalog lives in the app's code, not the database). Defaults to `'{}'`. Keep `instructions` filled too: the large view shows them under **"Today's plan"** (above the cues), so write what to do today (sets, reps, holds). If empty, the catalog's default dose shows instead. |
 | `block` | which plan it belongs to, e.g. `'2026-10 month2'`. Makes a block easy to find, replace or delete. |
 
 Example: one day of Month 2.
