@@ -81,6 +81,7 @@ export type Database = {
           block: string | null
           created_at: string
           date: string
+          exercises: string[]
           id: string
           instructions: string | null
           kind: string
@@ -93,6 +94,7 @@ export type Database = {
           block?: string | null
           created_at?: string
           date: string
+          exercises?: string[]
           id?: string
           instructions?: string | null
           kind: string
@@ -105,6 +107,7 @@ export type Database = {
           block?: string | null
           created_at?: string
           date?: string
+          exercises?: string[]
           id?: string
           instructions?: string | null
           kind?: string
