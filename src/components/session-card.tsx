@@ -7,6 +7,7 @@ import {
   PlayIcon,
   TriangleAlertIcon,
 } from 'lucide-react'
+import { AspectRatio } from '@/components/ui/aspect-ratio'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -49,16 +50,23 @@ function capitalise(word: string) {
 function VideoLink({ video }: { video: Video }) {
   return (
     <div className="flex flex-col gap-1">
-      <Button variant="link" asChild className="h-auto justify-start gap-2 p-0">
+      {/* Long titles wrap instead of running off the card */}
+      <Button
+        variant="link"
+        asChild
+        className="h-auto items-start justify-start gap-2 p-0 text-left whitespace-normal"
+      >
         <a
           href={`https://www.youtube.com/watch?v=${video.yt_id}`}
           target="_blank"
           rel="noreferrer"
         >
-          <PlayIcon />
-          {video.title}
+          <PlayIcon className="mt-0.5" />
+          <span>{video.title}</span>
           {video.duration_s != null && (
-            <Badge variant="secondary">{minutes(video.duration_s)}</Badge>
+            <Badge variant="secondary" className="shrink-0">
+              {minutes(video.duration_s)}
+            </Badge>
           )}
         </a>
       </Button>
@@ -69,6 +77,34 @@ function VideoLink({ video }: { video: Video }) {
         </p>
       )}
     </div>
+  )
+}
+
+// The first video as a small 16:9 thumbnail beside the title. Opens YouTube, like the links.
+function VideoThumbnail({ video }: { video: Video }) {
+  return (
+    <a
+      href={`https://www.youtube.com/watch?v=${video.yt_id}`}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`Play ${video.title}`}
+      className="block w-28 overflow-hidden rounded-md bg-muted"
+    >
+      <AspectRatio ratio={16 / 9}>
+        {/* hqdefault always exists; it's 4:3 with black bars, which object-cover crops off */}
+        <img
+          src={`https://i.ytimg.com/vi/${video.yt_id}/hqdefault.jpg`}
+          alt=""
+          loading="lazy"
+          className="size-full object-cover"
+        />
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="flex size-8 items-center justify-center rounded-full bg-background/85 text-foreground">
+            <PlayIcon className="ml-0.5 size-3.5 fill-current" />
+          </span>
+        </span>
+      </AspectRatio>
+    </a>
   )
 }
 
@@ -139,13 +175,16 @@ export function SessionCard({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="gap-x-3">
         <CardTitle className="text-lg">{session.title}</CardTitle>
-        <CardAction>
-          <Badge variant="outline">{capitalise(session.kind)}</Badge>
-        </CardAction>
+        <Badge variant="outline">{capitalise(session.kind)}</Badge>
+        {session.videos.length > 0 && (
+          <CardAction>
+            <VideoThumbnail video={session.videos[0]} />
+          </CardAction>
+        )}
         {session.instructions && (
-          <CardDescription>{session.instructions}</CardDescription>
+          <CardDescription className="col-span-full mt-2">{session.instructions}</CardDescription>
         )}
       </CardHeader>
 

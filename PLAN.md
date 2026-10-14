@@ -72,7 +72,7 @@ Pain colours always come with the word, never colour alone.
 | Morning arch check-in | `Drawer`, opened automatically once |
 | Run log (ladder step, clean y/n) | `Select` + `Switch` |
 | Week strip | custom row of status dots + `Tooltip` |
-| Video links | `Button` (link variant) with duration as a `Badge` |
+| Video links | Small thumbnail of the first video (`AspectRatio`) beside the title, plus `Button` (link variant) per video with duration as a `Badge` |
 | Library search/filter | `Command` (search) + `Badge` (tags) |
 | Progress charts | shadcn **Charts** (Recharts-based) |
 | Confirmations | `Sonner` toast |
