@@ -13,7 +13,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 
-const CODE_LENGTH = 6
+const CODE_LENGTH = 8 // must match Supabase: Auth > Sign In / Providers > Email > Email OTP Length
 const EMAIL_KEY = 'pisada:last-email'
 
 function rememberedEmail() {
@@ -110,7 +110,7 @@ export function Login() {
               >
                 <InputOTPGroup>
                   {Array.from({ length: CODE_LENGTH }, (_, i) => (
-                    <InputOTPSlot key={i} index={i} className="size-11 text-lg" />
+                    <InputOTPSlot key={i} index={i} className="h-11 w-9 text-lg" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
