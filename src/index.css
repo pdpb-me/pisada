@@ -95,10 +95,20 @@
     --status-done: var(--primary);
     --status-partial: oklch(from var(--primary) l c h / 45%);
     --status-skipped: oklch(0.708 0 0);
-    /* Exercise figures (src/exercises/) */
-    --fig-body: var(--foreground);
+    /* Exercise figures (src/exercises/): flat-colour figure. --fig-panel = background behind the figure */
     --fig-accent: var(--primary);
-    --fig-prop: var(--muted-foreground);
+    --fig-panel: var(--muted);
+    --fig-skin: #e3ac86;
+    --fig-hair: #3b2b23;
+    --fig-shirt: #6a7d95;
+    --fig-shorts: #2b3443;
+    --fig-shoe: #22262d;
+    --fig-prop: #9aa1ab;
+    --fig-prop-fill: #cdd2d9;
+    --fig-ball: #f0c440;
+    --fig-band: #2a9a70;
+    --fig-towel: #c3c9d1;
+    --fig-inset: #e3e7ed;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -142,9 +152,19 @@
     --status-done: var(--primary);
     --status-partial: oklch(from var(--primary) l c h / 45%);
     --status-skipped: oklch(0.556 0 0);
-    --fig-body: var(--foreground);
     --fig-accent: var(--primary);
-    --fig-prop: var(--muted-foreground);
+    --fig-panel: var(--muted);
+    --fig-skin: #d9a07a;
+    --fig-hair: #8b6a55;
+    --fig-shirt: #8ea3bd;
+    --fig-shorts: #56647b;
+    --fig-shoe: #c3cad4;
+    --fig-prop: #6c7480;
+    --fig-prop-fill: #3a414c;
+    --fig-ball: #e8bf45;
+    --fig-band: #3dbd8a;
+    --fig-towel: #4a525e;
+    --fig-inset: #252b33;
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);

@@ -44,7 +44,7 @@ export function ExerciseScreen({
       <div className="flex flex-col gap-5 px-5 pt-1">
         <h1 className="text-[28px] leading-tight font-bold tracking-tight">{ex.name}</h1>
 
-        <ExerciseFigure slug={ex.slug} inset dots className="rounded-2xl bg-muted p-3" />
+        <ExerciseFigure slug={ex.slug} inset className="rounded-2xl bg-muted p-3" />
 
         {/* A short dose sits big beside the tempo; a long instruction gets the full width */}
         <div className="grid grid-cols-2 gap-x-3 gap-y-4">

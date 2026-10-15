@@ -1,18 +1,22 @@
-// Pisada exercise catalog + figure definitions (style B).
-// Ported from docs/figures/exercises.js (the approved drawings). Keep every number as is.
+// Pisada exercise catalog + figure definitions (flat-colour style, 15 Oct).
+// Ported from docs/figures/exercises.js. Keep every number as is.
 // plan_sessions.exercises holds these slugs; an unknown slug shows nothing.
 import {
-  arc,
   arrow,
-  circle,
-  defs as rigDefs,
-  draw,
+  bbox,
+  body,
+  f,
+  footRp,
   lerp,
-  line,
+  limb,
+  pt,
+  render,
   solve,
+  type Joints,
   type LegPose,
   type Part,
-  type Pose,
+  type Pt,
+  type Scene,
 } from '@/exercises/rig'
 
 export type Exercise = {
@@ -26,67 +30,30 @@ export type Exercise = {
   donts: string[]
   stop?: string
   frameW?: number
-  frames: (() => string)[]
-  inset?: () => string
+  frames: (() => Scene)[]
+  inset?: () => Scene
 }
 
-const FH = 250,
-  GAP = 30,
-  GROUND = 238
+const GROUND = 238
 const hl = (...a: Part[]) => new Set(a)
-const ground = (y: number, x0 = 8, x1 = 162) =>
-  line(
-    [
-      { x: x0, y },
-      { x: x1, y },
-    ],
-    'prop',
-  )
-const wall = (x: number, y1: number, y0 = 40) =>
-  line(
-    [
-      { x, y: y0 },
-      { x, y: y1 },
-    ],
-    'prop',
-  )
 
 const STAND = { tl: 3, tu: 2, nk: 6, hd: 90 }
 const LIFTED: LegPose = { th: 196, sh: 252, ft: 162 }
 const reachWall = (x: number) => ({ reach: { x: x - 1.5, dy: 20 } })
-
-// ---------- standing, side view ----------
-function heelRaise(ft: number, opt: { single?: boolean; wallX: number; ballAt: [number, number] }) {
-  const ps: Pose = {
-    ...STAND,
-    near: { th: 180, sh: 180, ft, toe: 90 },
-    far: opt.single ? LIFTED : { th: 180, sh: 180, ft, toe: 90 },
-    arm: reachWall(opt.wallX),
-    anchor: { at: 'near.ball', to: opt.ballAt },
-  }
-  return solve(ps)
-}
-
-function chair(j: ReturnType<typeof solve>, topPt: { x: number; y: number }) {
-  const seatY = j.P.y + 8,
-    bx = j.P.x - 15,
-    gy = j.near.ball.y
-  return (
-    line(
-      [
-        { x: bx, y: gy },
-        { x: bx, y: seatY },
-        { x: j.P.x + 34, y: seatY },
-        { x: j.P.x + 34, y: gy },
-      ],
-      'prop',
-    ) +
-    line([{ x: bx, y: seatY }, topPt], 'prop') +
-    ground(gy)
-  )
-}
-
 const SEATED_LEGS = { near: { th: 90, sh: 180, ft: 90 }, far: { th: 90, sh: 180, ft: 90 } }
+
+function heelRaise(ft: number, o: { single?: boolean; wallX: number; ballAt: [number, number] }) {
+  const flat: LegPose = { th: 180, sh: 180, ft, toe: 90 }
+  return solve({ ...STAND, near: flat, far: o.single ? LIFTED : flat, arm: reachWall(o.wallX), anchor: { at: 'near.ball', to: o.ballAt } })
+}
+const chairItems = (j: Joints, top: Pt): Scene => [
+  { k: 'chair', bx: j.P.x - 15, seatY: j.P.y + 8, fx: j.P.x + 34, gy: j.near.ball.y, top },
+  { k: 'ground', y: j.near.ball.y },
+]
+const liftArrow = (j: Joints, y0: number, x = j.near.heel.x - 15): Scene[number] => ({
+  k: 'arrow',
+  pts: [pt(x, y0), pt(x, j.near.heel.y - 4)],
+})
 
 export const EXERCISES: Exercise[] = [
   {
@@ -98,18 +65,10 @@ export const EXERCISES: Exercise[] = [
     cues: ['Small “yes” nod', 'Head stays on the chair', 'Jaw relaxed'],
     donts: ['Chin poking forward', 'Hands on the head'],
     frames: [90, 122].map((hd, i) => () => {
-      const j = solve({
-        tl: -9,
-        tu: -9,
-        nk: -8,
-        hd,
-        ...SEATED_LEGS,
-        arm: { ua: 162, fa: 132 },
-        anchor: { at: 'P', to: [70, 150] },
-      })
-      let g = chair(j, { x: j.Hc.x - 12.5, y: j.Hc.y - 12 }) + draw(j, hl('neck', 'head'), { farDx: -4 })
-      if (i) g += arc(j.Hc, 20, 62, 128)
-      return g
+      const j = solve({ tl: -9, tu: -9, nk: -8, hd, ...SEATED_LEGS, arm: { ua: 162, fa: 132 }, anchor: { at: 'P', to: [70, 150] } })
+      const s: Scene = [...chairItems(j, pt(j.Hc.x - 12.5, j.Hc.y - 12)), ...body(j, hl('neck', 'head'), { farDx: -4 })]
+      if (i) s.push({ k: 'arc', c: j.Hc, r: 22, a0: 62, a1: 132 })
+      return s
     }),
   },
   {
@@ -126,35 +85,40 @@ export const EXERCISES: Exercise[] = [
         const cx = 100,
           sy = 104,
           py = 160,
-          gy = GROUND
-        let g = ''
-        g += line([{ x: cx - 40, y: py + 10 }, { x: cx + 40, y: py + 10 }], 'prop')
-        g +=
-          line([{ x: cx - 36, y: py + 10 }, { x: cx - 36, y: gy }], 'prop') +
-          line([{ x: cx + 36, y: py + 10 }, { x: cx + 36, y: gy }], 'prop') +
-          ground(gy, 20, 180)
-        g += line([{ x: cx - 10, y: py }, { x: cx - 12, y: py + 14 }, { x: cx - 12, y: gy - 6 }, { x: cx - 20, y: gy - 2 }], 'body')
-        g += line([{ x: cx + 10, y: py }, { x: cx + 12, y: py + 14 }, { x: cx + 12, y: gy - 6 }, { x: cx + 20, y: gy - 2 }], 'body')
-        g += line([{ x: cx - 10, y: py }, { x: cx + 10, y: py }], 'body') + line([{ x: cx, y: py }, { x: cx, y: sy }], 'body')
-        g += line([{ x: cx, y: sy }, { x: cx, y: sy - 9 }], 'body') + circle({ x: cx, y: sy - 20 }, 11, 'body')
-        g += line([{ x: cx - 88, y: sy + 2 }, { x: cx - 16, y: sy + 2 }, { x: cx, y: sy }, { x: cx + 16, y: sy + 2 }, { x: cx + 88, y: sy + 2 }], 'accent')
-        g +=
-          line([{ x: cx - 84, y: sy + 2 }, { x: cx - 84, y: sy - 8 }], 'accent') +
-          line([{ x: cx + 84, y: sy + 2 }, { x: cx + 84, y: sy - 8 }], 'accent')
-        return g
+          gy = GROUND,
+          s: Scene = []
+        s.push({ k: 'chairF', x0: cx - 40, x1: cx + 40, y: py + 10, legs: [cx - 36, cx + 36], gy }, { k: 'ground', y: gy, x0: 20, x1: 180 })
+        for (const sd of [-1, 1]) {
+          s.push(
+            limb('thigh', [pt(cx + sd * 10, py), pt(cx + sd * 12, py + 14)]),
+            limb('shank', [pt(cx + sd * 12, py + 14), pt(cx + sd * 12, gy - 8)]),
+            limb('foot', [pt(cx + sd * 12, gy - 8), pt(cx + sd * 13, gy - 3)], { r: [4.5, 4] }),
+          )
+        }
+        s.push(limb('lower', [pt(cx - 9, py), pt(cx + 9, py)], { r: [10, 10] }), limb('upper', [pt(cx, py - 2), pt(cx, sy + 11)], { r: [12, 13.5] }))
+        s.push(limb('neck', [pt(cx, sy + 4), pt(cx, sy - 9)]), { k: 'head', c: pt(cx, sy - 20), hd: null })
+        for (const sd of [-1, 1]) {
+          const y = sy + 2
+          s.push(
+            limb('upperArm', [pt(cx + sd * 13, y), pt(cx + sd * 50, y)], { hl: true }),
+            limb('forearm', [pt(cx + sd * 50, y), pt(cx + sd * 78, y)], { hl: true }),
+            limb('hand', [pt(cx + sd * 78, y), pt(cx + sd * 87, y)], { hl: true }),
+            limb('thumb', [pt(cx + sd * 84, y - 2), pt(cx + sd * 84, y - 10)], { hl: true }),
+          )
+        }
+        return s
       },
     ],
-    inset: () => {
-      const c = { x: 55, y: 125 }
-      let g = circle(c, 52, 'prop')
-      const P = { x: 50, y: 172 },
-        S = { x: 53, y: 100 }
-      g += line([P, { x: 48, y: 140 }, S], 'body') + line([S, { x: 54, y: 91 }], 'body') + circle({ x: 56, y: 80 }, 11, 'body')
-      g += circle({ x: 53, y: 103 }, 3.5, 'accent')
-      g += arrow([{ x: 62, y: 118 }, { x: 84, y: 118 }])
-      g += arc({ x: 48, y: 110 }, 15, 200, 250)
-      return g
-    },
+    inset: () => [
+      { k: 'ring', c: pt(55, 125), r: 52 },
+      limb('lower', [pt(50, 172), pt(48, 140)]),
+      limb('upper', [pt(48, 140), pt(53, 100)]),
+      limb('neck', [pt(53, 100), pt(54, 91)]),
+      { k: 'head', c: pt(56, 80), hd: 90 },
+      { k: 'mark', c: pt(46, 106), r: 4.5 },
+      { k: 'arrow', pts: [pt(70, 118), pt(90, 118)] },
+      { k: 'arc', c: pt(44, 112), r: 17, a0: 292, a1: 228 },
+    ],
   },
   {
     slug: 'thoracic_ext_chair',
@@ -169,7 +133,7 @@ export const EXERCISES: Exercise[] = [
       { tl: -4, tu: -30, nk: -22, hd: 72, ua: 138, fa: -12 },
     ].map((p) => () => {
       const j = solve({ ...p, ...SEATED_LEGS, arm: { ua: p.ua, fa: p.fa }, anchor: { at: 'P', to: [76, 150] } })
-      return chair(j, { x: j.P.x - 12, y: j.P.y - 24 }) + draw(j, hl('upper'), { farDx: -4 })
+      return [...chairItems(j, pt(j.P.x - 12, j.P.y - 24)), ...body(j, hl('upper'), { farDx: -4 })]
     }),
   },
   {
@@ -183,19 +147,26 @@ export const EXERCISES: Exercise[] = [
     donts: ['Heels drifting apart', 'Rolling onto the little toe'],
     frames: [90, 132].map((ft, i) => () => {
       const j = heelRaise(ft, { wallX: 142, ballAt: [100, GROUND] })
-      let g = ground(GROUND) + wall(142, GROUND) + draw(j, hl('nearShank', 'nearFoot'), { farDx: -4 })
-      g += circle(lerp(j.near.heel, j.near.A, 0.5), 5, 'accent')
-      if (i) g += arrow([{ x: j.near.heel.x - 12, y: GROUND - 3 }, { x: j.near.heel.x - 12, y: j.near.heel.y - 2 }])
-      return g
+      const s: Scene = [
+        { k: 'ground', y: GROUND },
+        { k: 'wall', x: 142, y0: 40, y1: GROUND },
+        ...body(j, hl('nearShank', 'nearFoot'), { farDx: -4 }),
+        { k: 'ball', c: lerp(j.near.heel, j.near.A, 0.5), r: 5.5 },
+      ]
+      if (i) s.push(liftArrow(j, GROUND - 3, j.near.heel.x - 17))
+      return s
     }),
-    inset: () => {
-      const c = { x: 55, y: 125 }
-      let g = circle(c, 52, 'prop')
-      g += line([{ x: 44, y: 82 }, { x: 44, y: 150 }], 'body') + line([{ x: 66, y: 82 }, { x: 66, y: 150 }], 'accent')
-      g += circle({ x: 55, y: 146 }, 6, 'accent')
-      g += arrow([{ x: 18, y: 146 }, { x: 34, y: 146 }]) + arrow([{ x: 92, y: 146 }, { x: 76, y: 146 }])
-      return g
-    },
+    inset: () => [
+      { k: 'ring', c: pt(55, 125), r: 52 },
+      { k: 'ground', y: 156, x0: 14, x1: 96 },
+      limb('shank', [pt(44, 84), pt(44, 146)], { r: [7.5, 4.5] }),
+      limb('ankle', [pt(44, 146), pt(44, 152)], { r: [4.5, 4.5] }),
+      limb('shank', [pt(66, 84), pt(66, 146)], { hl: true, r: [7.5, 4.5] }),
+      limb('ankle', [pt(66, 146), pt(66, 152)], { hl: true, r: [4.5, 4.5] }),
+      { k: 'ball', c: pt(55, 145), r: 5.5 },
+      { k: 'arrow', pts: [pt(14, 128), pt(33, 128)] },
+      { k: 'arrow', pts: [pt(96, 128), pt(77, 128)] },
+    ],
   },
   {
     slug: 'sl_heel_raise_step',
@@ -209,11 +180,15 @@ export const EXERCISES: Exercise[] = [
     frames: [132, 64].map((ft, i) => () => {
       const sy = 218
       const j = heelRaise(ft, { single: true, wallX: 150, ballAt: [96, sy] })
-      let g = ground(GROUND) + line([{ x: 91, y: GROUND }, { x: 91, y: sy }, { x: 150, y: sy }], 'prop') + wall(150, sy)
-      g += line([{ x: 40, y: sy }, { x: 88, y: sy }], 'prop', ' stroke-dasharray="3 4"')
-      g += draw(j, hl('nearShank', 'nearFoot'))
-      if (i) g += arrow([{ x: j.near.heel.x - 12, y: sy - 34 }, { x: j.near.heel.x - 12, y: j.near.heel.y }])
-      return g
+      const s: Scene = [
+        { k: 'ground', y: GROUND },
+        { k: 'block', x0: 91, y: sy, x1: 150, gy: GROUND },
+        { k: 'wall', x: 150, y0: 40, y1: sy },
+        { k: 'dash', pts: [pt(40, sy), pt(88, sy)] },
+        ...body(j, hl('nearShank', 'nearFoot')),
+      ]
+      if (i) s.push({ k: 'arrow', pts: [pt(j.near.heel.x - 16, sy - 32), pt(j.near.heel.x - 16, j.near.heel.y)] })
+      return s
     }),
   },
   {
@@ -230,26 +205,17 @@ export const EXERCISES: Exercise[] = [
       [12, 0],
       [-30, 12],
     ].map(([rot, dx], i) => () => {
-      const A = { x: 105 + dx, y: 120 }
-      const rp = (x: number, y: number) => {
-        const r = (rot * Math.PI) / 180
-        return { x: A.x + x * Math.cos(r) - y * Math.sin(r), y: A.y + x * Math.sin(r) + y * Math.cos(r) }
-      }
-      const outer = rp(-24, 42),
-        inner = rp(26, 42)
-      let g = line([{ x: 22, y: 112 }, { x: 22, y: GROUND }], 'prop') + ground(GROUND, 8, 60)
-      g += line([{ x: 22, y: 150 }, rp(-22, 34)], 'prop')
-      g += line([{ x: 105, y: 20 }, A], 'accent')
-      g += line([outer, A, inner], 'body') + line([outer, inner], 'accent')
-      ;[
-        [-18, 4],
-        [-10, 4.5],
-        [-2, 5],
-        [7, 5.5],
-        [17, 7],
-      ].forEach(([x, r]) => (g += circle(rp(x, 42 - r - 3), r, 'body')))
-      if (i) g += arc({ x: 105, y: 120 }, 66, 200, 158)
-      return g
+      const A = pt(105 + dx, 120),
+        rp = footRp({ A, rot })
+      const s: Scene = [
+        { k: 'post', x: 22, y0: 112, y1: GROUND },
+        { k: 'ground', y: GROUND, x0: 8, x1: 60 },
+        { k: 'band', pts: [pt(22, 150), rp(-22, 34)] },
+        limb('shank', [pt(105, 20), A], { hl: true, r: [8.5, 5.5] }),
+        { k: 'footFront', A, rot, hl: true },
+      ]
+      if (i) s.push({ k: 'arc', c: pt(105, 120), r: 70, a0: 202, a1: 156 })
+      return s
     }),
   },
   {
@@ -264,12 +230,12 @@ export const EXERCISES: Exercise[] = [
       () => {
         const ty = GROUND - 7
         const j = heelRaise(124, { single: true, wallX: 142, ballAt: [100, ty] })
-        return (
-          ground(GROUND) +
-          wall(142, GROUND) +
-          `<rect x="72" y="${ty}" width="54" height="7" rx="3.5" fill="none" stroke="var(--fig-prop)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>` +
-          draw(j, hl('nearShank', 'nearFoot'))
-        )
+        return [
+          { k: 'ground', y: GROUND },
+          { k: 'wall', x: 142, y0: 40, y1: GROUND },
+          { k: 'towel', x: 70, y: ty, w: 56, h: 7 },
+          ...body(j, hl('nearShank', 'nearFoot')),
+        ]
       },
     ],
   },
@@ -285,9 +251,9 @@ export const EXERCISES: Exercise[] = [
     stop: 'Stop when you can’t reach full height, lose the tempo, or pain goes above 3/10.',
     frames: [90, 132].map((ft, i) => () => {
       const j = heelRaise(ft, { single: true, wallX: 142, ballAt: [100, GROUND] })
-      let g = ground(GROUND) + wall(142, GROUND) + draw(j, hl('nearShank', 'nearFoot'))
-      if (i) g += arrow([{ x: j.near.heel.x - 12, y: GROUND - 3 }, { x: j.near.heel.x - 12, y: j.near.heel.y - 2 }])
-      return g
+      const s: Scene = [{ k: 'ground', y: GROUND }, { k: 'wall', x: 142, y0: 40, y1: GROUND }, ...body(j, hl('nearShank', 'nearFoot'))]
+      if (i) s.push(liftArrow(j, GROUND - 3))
+      return s
     }),
   },
 ]
@@ -296,27 +262,42 @@ export function exerciseFor(slug: string) {
   return EXERCISES.find((e) => e.slug === slug)
 }
 
-// Compose a strip: frames left to right, a neutral arrow between them, optional inset at the end.
-export function strip(ex: Exercise, { inset = true } = {}) {
-  const FW = ex.frameW || 170
-  let x = 0,
+// Compose a strip: frames left to right, a small grey arrow between them, optional inset at the end.
+// inset: only in the enlarged view. endOnly: just the last frame. The viewBox is cropped to the
+// content, so the strip fills whatever box it's put in.
+export function strip(ex: Exercise, { inset = true, endOnly = false, pad = 10 } = {}) {
+  const FW = ex.frameW || 170,
+    GAP = 30
+  const scenes = (endOnly ? [ex.frames[ex.frames.length - 1]] : ex.frames).map((fr) => fr())
+  const bb = scenes.map(bbox).reduce((a, b) => ({
+    x0: Math.min(a.x0, b.x0),
+    y0: Math.min(a.y0, b.y0),
+    x1: Math.max(a.x1, b.x1),
+    y1: Math.max(a.y1, b.y1),
+  }))
+  const fx0 = Math.max(0, bb.x0 - pad),
+    fw = Math.min(FW, bb.x1 + pad) - fx0
+  let y0 = bb.y0 - pad,
+    y1 = bb.y1 + pad,
+    x = 0,
     g = ''
-  ex.frames.forEach((fr, i) => {
+  scenes.forEach((sc, i) => {
     if (i) {
-      g += line([{ x: x + 6, y: FH / 2 }, { x: x + GAP - 8, y: FH / 2 }], 'prop', ' marker-end="url(#fig-ah-prop)"')
+      g += arrow([pt(x + 8, (y0 + y1) / 2), pt(x + GAP - 6, (y0 + y1) / 2)], 'var(--fig-prop)', true)
       x += GAP
     }
-    g += `<g transform="translate(${x},0)">${fr()}</g>`
-    x += FW
+    g += `<g transform="translate(${f(x - fx0)},0)">${render(sc)}</g>`
+    x += fw
   })
   if (inset && ex.inset) {
+    const sc = ex.inset(),
+      ib = bbox(sc)
+    y0 = Math.min(y0, ib.y0 - 4)
+    y1 = Math.max(y1, ib.y1 + 4)
     x += 14
-    g += `<g transform="translate(${x},0)">${ex.inset()}</g>`
-    x += 112
+    g += `<g transform="translate(${f(x - ib.x0)},0)">${render(sc)}</g>`
+    x += ib.x1 - ib.x0
   }
-  const defs = rigDefs.replace(
-    '</defs>',
-    `<marker id="fig-ah-prop" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto"><path d="M1 1L8 5L1 9" fill="none" stroke="var(--fig-prop)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>`,
-  )
-  return { svg: `<svg viewBox="0 0 ${x} ${FH}" xmlns="http://www.w3.org/2000/svg">${defs}${g}</svg>`, w: x, h: FH }
+  const h = y1 - y0
+  return { svg: `<svg viewBox="0 ${f(y0)} ${f(x)} ${f(h)}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`, w: x, h }
 }

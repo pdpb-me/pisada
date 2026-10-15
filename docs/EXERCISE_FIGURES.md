@@ -2,6 +2,8 @@
 
 Drafted 14 Oct 2026 in the claude.ai coaching chat. Pedro reviewed and approved the figures there.
 
+> **Update 15 Oct:** the style changed from the line figure to a **flat-colour figure** (clothed, tapered limbs, accent glow on the working area). Same poses, same `strip()` API; `src/exercises/` was re-ported, and the `--fig-*` tokens in `src/index.css` replace the three line-figure ones. No arrow markers and no joint dots any more. Full spec: "Pisada_Exercise_Visuals_Plan.md" in the claude.ai project. `docs/figures/review.html` is now the four-style comparison page.
+
 ## What this adds
 
 Sessions without a video (neck micro-dose, tendon block, heel-raise test) are text only today. This branch adds a **line-drawing figure for each exercise**:
