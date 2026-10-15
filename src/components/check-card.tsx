@@ -11,6 +11,7 @@ export function CheckCard({
   asks,
   answers,
   prompt,
+  note,
   onClick,
 }: {
   title: string
@@ -18,6 +19,7 @@ export function CheckCard({
   asks: string
   answers: { label: string; score: number }[]
   prompt: string
+  note?: string | null // a plain extra line, e.g. the morning weight
   onClick: () => void
 }) {
   return (
@@ -42,6 +44,7 @@ export function CheckCard({
         ) : (
           <span className="text-base font-semibold text-primary">{prompt}</span>
         )}
+        {note && <span className="text-base font-semibold">{note}</span>}
       </span>
     </button>
   )

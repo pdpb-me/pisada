@@ -38,6 +38,15 @@ insert into plan_sessions (date, slot, kind, title, instructions, video_ids, blo
  ('2026-10-19', 'pm', 'run',    'Run–walk ladder', 'Current ladder step. Stop if arch pain goes above 3/10.', '{}', '2026-10 month2', '8cbe648a-0d47-40f1-9a38-5cb26f37fd24');
 ```
 
+### `weights`: body weight (from 15 Oct)
+
+`date` (one row per day), `kg` (e.g. 72.4). Pedro adds it **optionally** in the morning check-in, a few times a week: after peeing, before drinking or eating. A new value on the same day replaces the old one. Weight moves with water and food, so look at **weekly averages**, not single days (the app compares the last 7 days with the 7 before):
+
+```sql
+select date_trunc('week', date)::date as week, round(avg(kg), 1) as avg_kg, count(*) as entries
+from weights group by 1 order by 1 desc limit 8;
+```
+
 ### `session_logs`: what happened (written by the app)
 
 One row per planned session at most: `plan_session_id` (unique), `status` (`done` | `partial` | `skipped`), `comment`, `logged_at`.

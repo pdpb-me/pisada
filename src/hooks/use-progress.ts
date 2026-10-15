@@ -13,6 +13,7 @@ export type Progress = {
   runs: Pick<Tables<'activities'>, 'date' | 'run_step' | 'clean'>[] // logged in the app, newest first
   watch: WatchActivity[] // synced from intervals.icu, 6 months, newest first
   tests: Pick<Tables<'tests'>, 'date' | 'test' | 'side' | 'value' | 'unit'>[]
+  weights: { date: string; kg: number }[] // a year, oldest first
 }
 
 export function useProgress() {
@@ -36,10 +37,18 @@ export function useProgress() {
         .gte('date', addDays(today, -182))
         .order('date', { ascending: false }),
       supabase.from('tests').select('date, test, side, value, unit').order('date'),
-    ]).then(([sy, r, w, t]) => {
-      const error = sy.error ?? r.error ?? w.error ?? t.error
+      supabase.from('weights').select('date, kg').gte('date', addDays(today, -364)).order('date'),
+    ]).then(([sy, r, w, t, kg]) => {
+      const error = sy.error ?? r.error ?? w.error ?? t.error ?? kg.error
       if (error) toast.error(`Couldn't load progress: ${error.message}`)
-      setData({ today, symptoms: sy.data ?? [], runs: r.data ?? [], watch: w.data ?? [], tests: t.data ?? [] })
+      setData({
+        today,
+        symptoms: sy.data ?? [],
+        runs: r.data ?? [],
+        watch: w.data ?? [],
+        tests: t.data ?? [],
+        weights: (kg.data ?? []).map((x) => ({ date: x.date, kg: Number(x.kg) })),
+      })
     })
   }, [])
 

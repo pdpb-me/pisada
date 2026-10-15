@@ -106,6 +106,8 @@ activities        id, date, sport (run|bike|hike|pilates|…), duration_s, dista
 
 tests             id, date, test ('sl_heel_raise'), side, value, unit, plan_session_id?
 
+weights           id, date (one per day), kg   ← optional, morning check-in, a few times a week
+
 run_steps         step, label, reps, run_min, walk_min, total_run_min,
                   warmup_min, cooldown_min, block   ← the run-walk ladder; steps 6+ added by the coaching chat
 

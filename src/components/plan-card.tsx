@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/card'
 import { LogSummary } from '@/components/log-summary'
 import type { DaySession } from '@/hooks/use-day'
 import { exerciseFor } from '@/exercises/catalog'
+import type { RunStep } from '@/hooks/use-run-steps'
+import { runStepFor, sessionMinutes } from '@/lib/session-time'
 import { testFor } from '@/lib/tests'
 import { cn } from '@/lib/utils'
 
@@ -12,15 +14,24 @@ function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
 
-// What the row says under the title before the session is logged
-function meta(s: DaySession) {
-  if (s.kind === 'pilates') return 'Class with your teacher'
+// What the row says under the title before the session is logged, with a rough time:
+// "3 exercises + 1 video · ~13 min"
+function meta(s: DaySession, steps: RunStep[], currentStep: number | null) {
+  const minutes = sessionMinutes(s, steps, currentStep)
+  const time = minutes != null ? `~${minutes} min` : null
+  let what: string
   const test = testFor(s.exercises)
-  if (test) return `Test · ${test.label.toLowerCase()}`
-  const exercises = s.exercises.filter((slug) => exerciseFor(slug)).length
-  const parts = [exercises > 0 && plural(exercises, 'exercise'), s.videos.length > 0 && plural(s.videos.length, 'video')]
-  const text = parts.filter(Boolean).join(' + ')
-  return text || (s.instructions ?? '')
+  const step = runStepFor(s, currentStep)
+  if (s.kind === 'pilates') what = 'Class with your teacher'
+  else if (test) what = `Test · ${test.label.toLowerCase()}`
+  else if (s.kind === 'run' && step != null) what = `Run–walk · step ${step}`
+  else {
+    const exercises = s.exercises.filter((slug) => exerciseFor(slug)).length
+    const parts = [exercises > 0 && plural(exercises, 'exercise'), s.videos.length > 0 && plural(s.videos.length, 'video')]
+    what = parts.filter(Boolean).join(' + ')
+  }
+  if (!what) return [s.instructions, time].filter(Boolean).join(' · ')
+  return [what, time].filter(Boolean).join(' · ')
 }
 
 function StatusMark({ status }: { status: string | null | undefined }) {
@@ -47,7 +58,17 @@ function StatusMark({ status }: { status: string | null | undefined }) {
 }
 
 // The day at a glance: one row per planned session. A row opens the session screen.
-export function PlanCard({ sessions, onOpen }: { sessions: DaySession[]; onOpen: (id: string) => void }) {
+export function PlanCard({
+  sessions,
+  runSteps,
+  currentStep,
+  onOpen,
+}: {
+  sessions: DaySession[]
+  runSteps: RunStep[]
+  currentStep: number | null
+  onOpen: (id: string) => void
+}) {
   const done = sessions.filter((s) => s.log?.status === 'done' || s.log?.status === 'partial').length
 
   return (
@@ -76,7 +97,7 @@ export function PlanCard({ sessions, onOpen }: { sessions: DaySession[]; onOpen:
             {s.log ? (
               <LogSummary session={s} showComment={false} />
             ) : (
-              <span className="line-clamp-1 text-sm text-muted-foreground">{meta(s)}</span>
+              <span className="line-clamp-1 text-sm text-muted-foreground">{meta(s, runSteps, currentStep)}</span>
             )}
           </span>
           <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />

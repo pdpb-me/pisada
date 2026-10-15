@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDay, type DaySession } from '@/hooks/use-day'
-import { useRunSteps, type RunStep } from '@/hooks/use-run-steps'
+import { lastRunStep, useRunSteps, type RunStep } from '@/hooks/use-run-steps'
 import { useScreens } from '@/hooks/use-screens'
 import { useWeek, type DayDot } from '@/hooks/use-week'
 import { addDays, longDate, todayISO, weekOf } from '@/lib/dates'
@@ -27,6 +27,11 @@ export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void 
   const days = weekOf(date)
   const week = useWeek(days)
   const runSteps = useRunSteps()
+  // the step a planned run will use (for its rough time): the last logged run's
+  const [currentStep, setCurrentStep] = useState<number | null>(null)
+  useEffect(() => {
+    lastRunStep().then(setCurrentStep)
+  }, [])
 
   // key: a fresh day (and screen stack) per date, so the previous day never shows while loading
   return (
@@ -39,6 +44,7 @@ export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void 
       onWeekChanged={week.reload}
       onDate={setDate}
       runSteps={runSteps}
+      currentStep={currentStep}
       onDeepChange={onDeepChange}
     />
   )
@@ -52,6 +58,7 @@ function Day({
   onWeekChanged,
   onDate,
   runSteps,
+  currentStep,
   onDeepChange,
 }: {
   date: string
@@ -61,6 +68,7 @@ function Day({
   onWeekChanged: () => void
   onDate: (date: string) => void
   runSteps: RunStep[]
+  currentStep: number | null
   onDeepChange: (deep: boolean) => void
 }) {
   const day = useDay(date)
@@ -160,7 +168,12 @@ function Day({
         {day.sessions === undefined ? (
           <Skeleton className="h-48 rounded-[18px]" />
         ) : (
-          <PlanCard sessions={day.sessions} onOpen={(id) => nav.push({ kind: 'session', id })} />
+          <PlanCard
+            sessions={day.sessions}
+            runSteps={runSteps}
+            currentStep={currentStep}
+            onOpen={(id) => nav.push({ kind: 'session', id })}
+          />
         )}
 
         {/* the day's check-ins: today and past days, never future ones */}

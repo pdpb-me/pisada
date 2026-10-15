@@ -24,6 +24,7 @@ export type Exercise = {
   name: string
   session: string
   dose: string
+  minutes: number // typical time with rests, for the day's rough total
   tempo?: string
   setup: string
   cues: string[]
@@ -61,6 +62,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Chin nod',
     session: 'Neck micro-dose',
     dose: '10 × 5 s hold',
+    minutes: 2,
     setup: 'Sit tall, back and back of the head resting on the chair back.',
     cues: ['Small “yes” nod', 'Head stays on the chair', 'Jaw relaxed'],
     donts: ['Chin poking forward', 'Hands on the head'],
@@ -76,6 +78,7 @@ export const EXERCISES: Exercise[] = [
     name: 'T-hold',
     session: 'Neck micro-dose',
     dose: '3 × 15 s hold',
+    minutes: 2,
     setup: 'Sit tall, away from the chair back.',
     cues: ['Thumbs up', 'Shoulders down and back', 'Chest forward'],
     donts: ['Shrugging', 'Head poking forward'],
@@ -125,6 +128,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Thoracic extension over the chair',
     session: 'Neck micro-dose',
     dose: '6 slow reps',
+    minutes: 2,
     setup: 'Sit with the top of the chair back at the bottom of your shoulder blades, arms crossed on the chest.',
     cues: ['Bend over the chair edge', 'Head follows the chest', 'Slow'],
     donts: ['Hands on the head', 'Looking up at the end'],
@@ -141,6 +145,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Ball-squeeze heel raise',
     session: 'Tendon block · wk 1–2',
     dose: '3 × 15 · right +1 set',
+    minutes: 6,
     tempo: '3 s up · 3 s down',
     setup: 'Stand with a small ball or rolled towel squeezed between the heels, fingertips on a wall.',
     cues: ['Squeeze the ball the whole time', 'Straight up', 'Weight over the big toe'],
@@ -173,6 +178,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Single-leg heel raise on a step',
     session: 'Tendon block · wk 3–4',
     dose: '3 × 8–12 per side · right +1 set',
+    minutes: 8,
     tempo: '3 s up · 3 s down',
     setup: 'Right foot on a step edge, heel off the back, other foot lifted, fingertips on a wall.',
     cues: ['Full height at the top', 'Lower below the step', 'Drive through the big toe'],
@@ -196,6 +202,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Banded foot inversion',
     session: 'Tendon block',
     dose: '3 × 15 · right +1 set',
+    minutes: 5,
     tempo: 'about 2 s each way',
     setup: 'Sit with the right leg crossed over the left knee. Band around the forefoot, anchored to the outside.',
     cues: ['Move only the foot', 'Sweep in and up', 'Control the way back'],
@@ -223,6 +230,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Single-leg heel-raised hold on a towel',
     session: 'Tendon block',
     dose: '3 × 30 s per side · right +1 set',
+    minutes: 5,
     setup: 'Stand on the right foot on a folded towel or cushion, heel raised, other foot lifted, fingertips on a wall.',
     cues: ['Heel high', 'Ankle doesn’t roll out', 'Breathe'],
     donts: ['Rolling to the outside', 'Gripping the support'],
@@ -244,6 +252,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Single-leg heel raises to fatigue',
     session: 'Test · baseline 16 Oct · retest 12 Nov',
     dose: 'Max reps, left then right',
+    minutes: 8,
     tempo: '2 s up · 2 s down',
     setup: 'Stand on one foot on the flat floor, fingertips on a wall for balance only.',
     cues: ['Full height every rep', 'Same tempo', 'Fingertips only'],

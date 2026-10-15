@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { SunriseIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { CheckCard } from '@/components/check-card'
+import { WeightInput } from '@/components/weight-input'
 import { PainScale } from '@/components/pain-scale'
 import { CleanToggle } from '@/components/run-log'
 import { Button } from '@/components/ui/button'
@@ -37,7 +38,7 @@ function markAsked(date: string) {
 // Opens by itself once per morning; after "Later" it stays as a small
 // reminder at the top of Today until answered.
 export function MorningCheck({ date, isToday }: { date: string; isToday: boolean }) {
-  const { answer, save, run, saveClean } = useMorningCheck(date)
+  const { answer, save, run, saveClean, weight, saveWeight } = useMorningCheck(date)
   const [open, setOpen] = useState(false)
 
   const cleanPending = run != null && run.clean == null
@@ -50,18 +51,16 @@ export function MorningCheck({ date, isToday }: { date: string; isToday: boolean
     setOpen(true)
   }, [shouldAutoOpen, date])
 
-  // Close once everything asked is answered
+  // Stays open after a tap, so the weight can be added too; Done closes it
   async function pick(score: number | null) {
     if (await save(score)) {
       if (score != null) toast.success('Saved')
-      if (score != null && !cleanPending) setOpen(false)
     }
   }
 
   async function pickClean(clean: boolean | null) {
     if (await saveClean(clean)) {
       if (clean != null) toast.success('Saved')
-      if (clean != null && answer) setOpen(false)
     }
   }
 
@@ -73,6 +72,7 @@ export function MorningCheck({ date, isToday }: { date: string; isToday: boolean
         asks={cleanPending && answer ? "Yesterday's run: clean?" : 'Arch, first steps'}
         answers={answer ? [{ label: painLabel(answer.score), score: answer.score }] : []}
         prompt="How's the arch?"
+        note={weight != null ? `${weight.toFixed(1)} kg` : null}
         onClick={() => setOpen(true)}
       />
 
@@ -80,9 +80,9 @@ export function MorningCheck({ date, isToday }: { date: string; isToday: boolean
         <DrawerContent>
           <div className="mx-auto w-full max-w-md">
             <DrawerHeader>
-              <DrawerTitle>How's the arch this morning?</DrawerTitle>
+              <DrawerTitle>This morning</DrawerTitle>
               <DrawerDescription>
-                Right foot, first steps out of bed.
+                Right arch at the first steps out of bed, and your weight if you like.
               </DrawerDescription>
             </DrawerHeader>
             <div className="flex flex-col gap-6 px-4">
@@ -93,10 +93,12 @@ export function MorningCheck({ date, isToday }: { date: string; isToday: boolean
                   <CleanToggle value={run.clean} onChange={pickClean} />
                 </div>
               )}
+              {/* key: a fresh box when the saved value changes */}
+              <WeightInput key={weight ?? 'none'} value={weight} onSave={saveWeight} />
             </div>
             <DrawerFooter>
-              <Button variant="ghost" className="h-11" onClick={() => setOpen(false)}>
-                Later
+              <Button size="lg" className="h-12 rounded-full text-base" onClick={() => setOpen(false)}>
+                {complete ? 'Done' : 'Later'}
               </Button>
             </DrawerFooter>
           </div>

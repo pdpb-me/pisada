@@ -10,9 +10,10 @@ import { supabase } from '@/lib/supabase'
 export function useMorningCheck(date: string) {
   const [answer, setAnswer] = useState<{ id: string; score: number } | null>(null)
   const [run, setRun] = useState<{ id: string; clean: boolean | null } | null>(null)
+  const [weight, setWeight] = useState<number | null>(null) // kg, optional
 
   const load = useCallback(async () => {
-    const [today, yesterdayRun] = await Promise.all([
+    const [today, yesterdayRun, kg] = await Promise.all([
       supabase
         .from('symptoms')
         .select('id, score')
@@ -27,9 +28,11 @@ export function useMorningCheck(date: string) {
         .eq('sport', 'run')
         .neq('source', 'intervals') // the run you logged, not its watch copy
         .limit(1),
+      supabase.from('weights').select('kg').eq('date', date).maybeSingle(),
     ])
     setAnswer(today.data?.[0] ?? null)
     setRun(yesterdayRun.data?.[0] ?? null)
+    setWeight(kg.data ? Number(kg.data.kg) : null)
   }, [date])
 
   useEffect(() => {
@@ -72,5 +75,19 @@ export function useMorningCheck(date: string) {
     return true
   }
 
-  return { answer, save, run, saveClean }
+  // Weight (kg): one per day, so a new value corrects it; null removes it
+  async function saveWeight(kg: number | null) {
+    const { error } =
+      kg == null
+        ? await supabase.from('weights').delete().eq('date', date)
+        : await supabase.from('weights').upsert({ date, kg }, { onConflict: 'user_id,date' })
+    if (error) {
+      toast.error(`Weight not saved: ${error.message}`)
+      return false
+    }
+    await load()
+    return true
+  }
+
+  return { answer, save, run, saveClean, weight, saveWeight }
 }

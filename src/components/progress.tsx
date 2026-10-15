@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { FlagIcon, TrendingUpIcon } from 'lucide-react'
+import { FlagIcon, ScaleIcon, TrendingUpIcon } from 'lucide-react'
 import { ActivitiesList } from '@/components/activities-list'
 import { PainDetail } from '@/components/pain-detail'
+import { WeightDetail } from '@/components/weight-detail'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useNextTest } from '@/hooks/use-next-test'
@@ -9,13 +10,14 @@ import { useProgress, type Progress as Data } from '@/hooks/use-progress'
 import { useRunSteps } from '@/hooks/use-run-steps'
 import { useScreens } from '@/hooks/use-screens'
 import { useWeek } from '@/hooks/use-week'
-import { weekOf } from '@/lib/dates'
+import { addDays, weekOf } from '@/lib/dates'
 import { painBand } from '@/lib/pain'
 import { PAIN_DOT } from '@/lib/session-status'
 import { AREAS, average, compare, dailySeries, VERDICT_TEXT, type AreaId } from '@/lib/trends'
 import { cn } from '@/lib/utils'
+import { changeText, weightChange } from '@/lib/weight'
 
-type Screen = { kind: 'dashboard' } | { kind: 'pain'; area: AreaId }
+type Screen = { kind: 'dashboard' } | { kind: 'pain'; area: AreaId } | { kind: 'weight' }
 
 const STATUS_BLOCK: Record<string, string> = {
   done: 'bg-status-done',
@@ -48,6 +50,9 @@ export function ProgressView({ data, onDeepChange }: { data: Data | undefined; o
 
   if (nav.screen.kind === 'pain' && data) {
     return <PainDetail area={nav.screen.area} data={data} onBack={nav.back} />
+  }
+  if (nav.screen.kind === 'weight' && data) {
+    return <WeightDetail data={data} onBack={nav.back} />
   }
 
   return (
@@ -87,6 +92,7 @@ export function ProgressView({ data, onDeepChange }: { data: Data | undefined; o
             {(Object.keys(AREAS) as AreaId[]).map((a) => (
               <PainCard key={a} area={a} data={data} onOpen={() => nav.push({ kind: 'pain', area: a })} />
             ))}
+            <WeightCard data={data} onOpen={() => nav.push({ kind: 'weight' })} />
             <HeelRaiseCard data={data} />
             <LadderCard runs={data.runs} />
           </div>
@@ -251,7 +257,7 @@ function LadderCard({ runs }: { runs: Data['runs'] }) {
   const total = Math.max(steps.length, current)
 
   return (
-    <Card className="col-span-2 min-h-36 gap-2 px-3.5 py-3.5">
+    <Card className="min-h-44 gap-2 px-3.5 py-3.5">
       <div className="flex items-start justify-between">
         <span className="flex flex-col">
           <span className="text-base font-semibold">Run ladder</span>
@@ -272,5 +278,49 @@ function LadderCard({ runs }: { runs: Data['runs'] }) {
         ))}
       </span>
     </Card>
+  )
+}
+
+// Weight: the latest value, the 7-day average and its change, and a small 4-week line
+function WeightCard({ data, onOpen }: { data: Data; onOpen: () => void }) {
+  const last = data.weights[data.weights.length - 1]
+  const { now, change } = weightChange(data.weights, data.today, 7)
+  const recent = data.weights.filter((w) => w.date > addDays(data.today, -28))
+  const lo = Math.min(...recent.map((w) => w.kg))
+  const hi = Math.max(...recent.map((w) => w.kg))
+  const span = Math.max(hi - lo, 0.5)
+  const dayX = (d: string) => (daysBetween(addDays(data.today, -27), d) / 27) * 100
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex min-h-52 flex-col gap-2 rounded-[18px] bg-card p-3.5 text-left ring-1 ring-foreground/10"
+    >
+      <span className="flex items-start justify-between gap-1">
+        <span className="flex flex-col">
+          <span className="text-base font-semibold">Weight</span>
+          <span className="text-xs text-muted-foreground">{last ? `Last ${shortDate(last.date)}` : 'Morning check-in'}</span>
+        </span>
+        <ScaleIcon className="size-4 text-primary" />
+      </span>
+      <span className="text-[26px] leading-tight font-bold tracking-tight">{last ? `${last.kg.toFixed(1)} kg` : '–'}</span>
+      <span className="text-xs font-medium text-muted-foreground">
+        {now ? `7-day avg ${now.kg.toFixed(1)}` : 'Add it in the morning check-in'}
+      </span>
+      {now && <span className="text-xs text-muted-foreground">{changeText(change, 'last week')}</span>}
+      {recent.length >= 2 && (
+        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="mt-auto h-11 w-full" aria-hidden>
+          <polyline
+            points={recent.map((w) => `${dayX(w.date).toFixed(1)},${(36 - ((w.kg - lo) / span) * 32).toFixed(1)}`).join(' ')}
+            fill="none"
+            className="stroke-primary"
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </button>
   )
 }

@@ -225,8 +225,8 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
                 strokeWidth="2"
               />
             ))}
-            {ticks.map((i) => (
-              <text key={i} x={x(i)} y="232" textAnchor="middle" className="fill-muted-foreground text-[12px]">
+            {ticks.map((i, k) => (
+              <text key={i} x={x(i)} y="232" textAnchor={k === 0 ? 'start' : k === ticks.length - 1 ? 'end' : 'middle'} className="fill-muted-foreground text-[12px]">
                 {shortDate(series[i].date)}
               </text>
             ))}
