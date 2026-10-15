@@ -1,313 +1,276 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useEffect, useState } from 'react'
+import { FlagIcon, TrendingUpIcon } from 'lucide-react'
+import { ActivitiesList } from '@/components/activities-list'
+import { PainDetail } from '@/components/pain-detail'
+import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useNextTest } from '@/hooks/use-next-test'
 import { useProgress, type Progress as Data } from '@/hooks/use-progress'
-import { addDays, weekOf } from '@/lib/dates'
-import { painBand, painLabel, type PainBand } from '@/lib/pain'
-import { tinglingLabel } from '@/lib/tingling'
+import { useRunSteps } from '@/hooks/use-run-steps'
+import { useScreens } from '@/hooks/use-screens'
+import { useWeek } from '@/hooks/use-week'
+import { weekOf } from '@/lib/dates'
+import { painBand } from '@/lib/pain'
+import { PAIN_DOT } from '@/lib/session-status'
+import { AREAS, average, compare, dailySeries, VERDICT_TEXT, type AreaId } from '@/lib/trends'
 import { cn } from '@/lib/utils'
 
-// First version: plain tables, no charts. Shows that the data is there and adds up.
+type Screen = { kind: 'dashboard' } | { kind: 'pain'; area: AreaId }
 
-const PAIN_DOT: Record<PainBand, string> = { low: 'bg-pain-low', mid: 'bg-pain-mid', high: 'bg-pain-high' }
+const STATUS_BLOCK: Record<string, string> = {
+  done: 'bg-status-done',
+  partial: 'bg-status-partial',
+  skipped: 'bg-status-skipped',
+}
 
 function shortDate(iso: string) {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-function Pain({ score }: { score: number | undefined }) {
-  if (score == null) return <span className="text-muted-foreground">–</span>
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={cn('size-2 rounded-full', PAIN_DOT[painBand(score)])} />
-      {painLabel(score)}
-    </span>
-  )
+function daysBetween(from: string, to: string) {
+  return Math.round((Date.parse(`${to}T12:00:00`) - Date.parse(`${from}T12:00:00`)) / 86400000)
 }
 
-// A coloured dot with its word (pain colour never comes alone)
-function Level({ score, label }: { score: number; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={cn('size-2 rounded-full', PAIN_DOT[painBand(score)])} />
-      {label}
-    </span>
-  )
+// Dashboard (cards) | Activities (watch data); a pain card opens its detail.
+export function Progress({ onDeepChange }: { onDeepChange: (deep: boolean) => void }) {
+  return <ProgressView data={useProgress()} onDeepChange={onDeepChange} />
 }
 
-// ---------- Pain trend: is it getting better? ----------
+// Drawing only, so it can also be shown with sample data
+export function ProgressView({ data, onDeepChange }: { data: Data | undefined; onDeepChange: (deep: boolean) => void }) {
+  const nav = useScreens<Screen>({ kind: 'dashboard' })
+  const [tab, setTab] = useState<'dashboard' | 'activities'>('dashboard')
+  const deep = nav.screen.kind !== 'dashboard'
 
-const TRENDS = [
-  { area: 'arch', timing: 'next_morning', title: 'Arch, first steps in the morning', label: painLabel },
-  { area: 'arch', timing: 'evening', title: 'Arch, over the day', label: painLabel },
-  { area: 'neck', timing: 'evening', title: 'Neck, over the day', label: painLabel },
-  { area: 'hands', timing: 'evening', title: 'Hands tingling', label: tinglingLabel },
-] as const
+  useEffect(() => {
+    onDeepChange(deep)
+  }, [deep, onDeepChange])
 
-const MIN_ANSWERS = 3 // per week, before comparing
-const CHANGE = 1 // average points (0–10) that count as a real change
-
-function TrendRow({
-  symptoms,
-  to,
-  trend,
-}: {
-  symptoms: Data['symptoms']
-  to: string
-  trend: (typeof TRENDS)[number]
-}) {
-  const days = Array.from({ length: 28 }, (_, i) => addDays(to, i - 27)) // oldest first, today last
-  const scoreOn = (d: string) => {
-    const s = symptoms.filter((x) => x.date === d && x.body_area === trend.area && x.timing === trend.timing)
-    return s.length ? Math.max(...s.map((x) => x.score)) : undefined
-  }
-  const scores = days.map(scoreOn)
-  const week = (from: number) => scores.slice(from, from + 7).filter((x): x is number => x != null)
-  const thisWeek = week(21)
-  const lastWeek = week(14)
-  const avg = (a: number[]) => a.reduce((t, x) => t + x, 0) / a.length
-
-  let verdict: string
-  let detail: string | null = null
-  if (thisWeek.length < MIN_ANSWERS || lastWeek.length < MIN_ANSWERS) {
-    verdict = 'Not enough answers yet'
-    detail = `${thisWeek.length} this week, ${lastWeek.length} last week. It compares weeks once each has ${MIN_ANSWERS}.`
-  } else {
-    const now = avg(thisWeek)
-    const before = avg(lastWeek)
-    verdict = now <= before - CHANGE ? 'Better than last week' : now >= before + CHANGE ? 'Worse than last week' : 'About the same as last week'
-    const nowWord = trend.label(Math.round(now))
-    const beforeWord = trend.label(Math.round(before))
-    detail =
-      nowWord !== beforeWord
-        ? `This week mostly ${nowWord}, last week mostly ${beforeWord}.`
-        : verdict.startsWith('About')
-          ? `Mostly ${nowWord} both weeks.`
-          : `Mostly ${nowWord} both weeks, but ${now < before ? 'lower' : 'higher'} this week.`
+  if (nav.screen.kind === 'pain' && data) {
+    return <PainDetail area={nav.screen.area} data={data} onBack={nav.back} />
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-medium">{trend.title}</span>
-      </div>
-      <span className="text-base font-semibold">{verdict}</span>
-      {detail && <span className="text-xs text-muted-foreground">{detail}</span>}
-      {/* 28 days, oldest left; hollow = no answer that day */}
-      <div className="mt-1 flex gap-0.5" aria-hidden>
-        {scores.map((sc, i) => (
-          <span
-            key={days[i]}
-            title={`${shortDate(days[i])}: ${sc == null ? 'no answer' : trend.label(sc)}`}
-            className={cn('h-3 flex-1 rounded-sm', sc == null ? 'ring-1 ring-inset ring-foreground/15' : PAIN_DOT[painBand(sc)])}
-          />
-        ))}
-      </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground">
-        <span>4 weeks ago</span>
-        <span>today</span>
-      </div>
-    </div>
-  )
-}
-
-function PainTrend({ symptoms, to }: { symptoms: Data['symptoms']; to: string }) {
-  return (
-    <Section title="Pain trend" note="Is it getting better? Last 7 days against the 7 before">
-      <div className="flex flex-col gap-6">
-        {TRENDS.map((t) => (
-          <TrendRow key={t.area + t.timing} symptoms={symptoms} to={to} trend={t} />
-        ))}
-      </div>
-    </Section>
-  )
-}
-
-function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
-  return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-left text-xs text-muted-foreground">
-          {head.map((h) => (
-            <th key={h} className="pb-2 font-medium">
-              {h}
-            </th>
+    <main className="mx-auto flex min-h-svh max-w-md flex-col">
+      <div className="flex flex-col gap-3.5 border-b bg-card px-5 pt-5">
+        <h1 className="text-[28px] font-bold tracking-tight">Progress</h1>
+        <div className="flex gap-7" role="tablist">
+          {(['dashboard', 'activities'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={cn(
+                'min-h-11 border-b-[3px] pb-2 text-[17px] capitalize',
+                tab === t ? 'border-primary font-semibold text-primary' : 'border-transparent font-medium text-muted-foreground',
+              )}
+            >
+              {t}
+            </button>
           ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr key={i} className="border-t">
-            {r.map((c, j) => (
-              <td key={j} className="py-2 pr-2">
-                {c}
-              </td>
+        </div>
+      </div>
+
+      {data === undefined ? (
+        <div className="flex flex-col gap-3 p-4">
+          <Skeleton className="h-36 rounded-[18px]" />
+          <Skeleton className="h-52 rounded-[18px]" />
+        </div>
+      ) : tab === 'activities' ? (
+        <ActivitiesList watch={data.watch} today={data.today} />
+      ) : (
+        <div className="flex flex-col gap-3 p-4">
+          <WeekCard today={data.today} />
+          <div className="grid grid-cols-2 gap-3">
+            {(Object.keys(AREAS) as AreaId[]).map((a) => (
+              <PainCard key={a} area={a} data={data} onOpen={() => nav.push({ kind: 'pain', area: a })} />
             ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+            <HeelRaiseCard data={data} />
+            <LadderCard runs={data.runs} />
+          </div>
+        </div>
+      )}
+    </main>
   )
 }
 
-function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+// This week: one small block per planned session, coloured by status
+function WeekCard({ today }: { today: string }) {
+  const days = weekOf(today)
+  const { dots } = useWeek(days)
+  const all = Object.values(dots).flat()
+  const done = all.filter((d) => d.status === 'done' || d.status === 'partial').length
+  const partial = all.filter((d) => d.status === 'partial').length
+  const skipped = all.filter((d) => d.status === 'skipped').length
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {note && <CardDescription>{note}</CardDescription>}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
+    <Card className="gap-3 px-4 py-4">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[17px] font-semibold">This week</span>
+        <span className="text-sm text-muted-foreground">
+          {shortDate(days[0])} – {shortDate(days[6])}
+        </span>
+      </div>
+      <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="flex items-baseline gap-1.5">
+            <span className="text-[34px] leading-none font-bold tracking-tight">{done}</span>
+            <span className="text-[17px] text-muted-foreground">of {all.length} sessions</span>
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {[partial > 0 && `${partial} partly`, skipped > 0 && `${skipped} skipped`].filter(Boolean).join(' · ') || ' '}
+          </span>
+        </div>
+        <div className="flex items-end gap-1.5" aria-hidden>
+          {days.map((d) => (
+            <div key={d} className="flex flex-col items-center gap-1">
+              <div className="flex h-11 flex-col-reverse gap-0.5">
+                {(dots[d] ?? []).slice(0, 3).map((s) => (
+                  <span
+                    key={s.id}
+                    className={cn('h-3.5 w-3.5 rounded-[3px]', s.status ? STATUS_BLOCK[s.status] : 'ring-[1.5px] ring-border ring-inset')}
+                  />
+                ))}
+              </div>
+              <span className={cn('text-[11px]', d === today ? 'font-bold' : 'text-muted-foreground')}>
+                {new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'narrow' })}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </Card>
   )
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-muted-foreground">{children}</p>
+// One area: the word for the last 7 days, the trend, and 14 small daily bars
+function PainCard({ area, data, onOpen }: { area: AreaId; data: Data; onOpen: () => void }) {
+  const a = AREAS[area]
+  const days = dailySeries(data.symptoms, area, data.today, 14)
+  const scores = days.map((d) => d.score)
+  const cmp = compare(scores.slice(7), scores.slice(0, 7))
+  const week = scores.slice(7).filter((s): s is number => s != null)
+  const avg = week.length ? Math.round(average(week)) : null // rounded: word and dot agree
+
+  const word =
+    area === 'hands'
+      ? week.length
+        ? `${week.filter((s) => s > 0).length} ${week.filter((s) => s > 0).length === 1 ? 'day' : 'days'}`
+        : '–'
+      : avg != null
+        ? a.label(avg)
+        : '–'
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex min-h-52 flex-col gap-2 rounded-[18px] bg-card p-3.5 text-left ring-1 ring-foreground/10"
+    >
+      <span className="flex items-start justify-between gap-1">
+        <span className="flex flex-col">
+          <span className="text-base font-semibold">{a.title}</span>
+          <span className="text-xs text-muted-foreground">{a.sub} · 2 wk</span>
+        </span>
+        {avg != null && <span className={cn('mt-1 size-2.5 rounded-full', PAIN_DOT[painBand(avg)])} />}
+      </span>
+      <span className="text-[26px] leading-tight font-bold tracking-tight">{word}</span>
+      <span className="text-xs font-medium text-muted-foreground">{VERDICT_TEXT[cmp.verdict]}</span>
+      <span className="mt-auto flex h-11 items-end gap-0.5" aria-hidden>
+        {scores.map((s, i) => (
+          <span
+            key={days[i].date}
+            className={cn('flex-1 rounded-[2px]', s == null ? 'h-1.5 ring-1 ring-border ring-inset' : PAIN_DOT[painBand(s)])}
+            style={s == null ? undefined : { height: `${s === 0 ? 6 : Math.round(8 + s * 3.4)}px` }}
+          />
+        ))}
+      </span>
+      <span className="flex justify-between text-[10px] text-muted-foreground">
+        <span>2 wk ago</span>
+        <span>today</span>
+      </span>
+    </button>
+  )
 }
 
-function TestResults({ tests }: { tests: Data['tests'] }) {
-  const heel = tests.filter((t) => t.test === 'sl_heel_raise')
+function HeelRaiseCard({ data }: { data: Data }) {
+  const { next } = useNextTest(data.today)
+  const heel = data.tests.filter((t) => t.test === 'sl_heel_raise')
   const dates = [...new Set(heel.map((t) => t.date))]
-  const value = (date: string, side: string) => heel.find((t) => t.date === date && t.side === side)?.value
+  const first = dates[0]
+  const last = dates[dates.length - 1]
+  const at = (date: string | undefined, side: string) => heel.find((t) => t.date === date && t.side === side)?.value
+  const countdown = next
+    ? daysBetween(data.today, next.date) === 0
+      ? 'Test today'
+      : `Next test in ${daysBetween(data.today, next.date)} days`
+    : null
+
   return (
-    <Section title="Heel-raise test" note="Single-leg heel raises to fatigue, reps per side">
-      {dates.length === 0 ? (
-        <Empty>No results yet. Baseline is on 16 Oct.</Empty>
+    <Card className="min-h-44 gap-2 px-3.5 py-3.5">
+      <div className="flex items-start justify-between">
+        <span className="flex flex-col">
+          <span className="text-base font-semibold">Heel raises</span>
+          <span className="text-xs text-muted-foreground">Reps per side</span>
+        </span>
+        <FlagIcon className="size-4 text-primary" />
+      </div>
+      {last ? (
+        <div className="flex gap-4">
+          {(['L', 'R'] as const).map((side) => (
+            <span key={side} className="flex flex-col">
+              <span className="text-xs text-muted-foreground">{side === 'L' ? 'Left' : 'Right'}</span>
+              <span className="text-[28px] leading-tight font-bold">{at(last, side) ?? '–'}</span>
+              {first !== last && at(first, side) != null && (
+                <span className="text-xs text-muted-foreground">from {at(first, side)}</span>
+              )}
+            </span>
+          ))}
+        </div>
       ) : (
-        <Table
-          head={['Date', 'Left', 'Right']}
-          rows={dates.map((d) => [shortDate(d), value(d, 'L') ?? '–', value(d, 'R') ?? '–'])}
-        />
+        <span className="text-[26px] leading-tight font-bold">–</span>
       )}
-    </Section>
+      <span className="mt-auto text-xs text-muted-foreground">
+        {[last && `Last ${shortDate(last)}`, countdown].filter(Boolean).join(' · ') || 'No test planned'}
+      </span>
+    </Card>
   )
 }
 
-function PainByDay({ symptoms, to }: { symptoms: Data['symptoms']; to: string }) {
-  const days = Array.from({ length: 14 }, (_, i) => addDays(to, -i))
-  // the highest score of the day, per body area and timing
-  const max = (date: string, area: string, timing: string) => {
-    const s = symptoms.filter((x) => x.date === date && x.body_area === area && x.timing === timing)
-    return s.length ? Math.max(...s.map((x) => x.score)) : undefined
+// Run–walk ladder: the current step (the coach moves it), and the clean streak
+function LadderCard({ runs }: { runs: Data['runs'] }) {
+  const steps = useRunSteps()
+  const current = runs.find((r) => r.run_step != null)?.run_step ?? 1
+  let streak = 0
+  for (const r of runs) {
+    if (r.clean !== true) break
+    streak++
   }
-  const rows = days
-    .map((d) => ({
-      d,
-      morning: max(d, 'arch', 'next_morning'),
-      archDay: max(d, 'arch', 'evening'),
-      neck: max(d, 'neck', 'evening'),
-      hands: max(d, 'hands', 'evening'),
-    }))
-    .filter((r) => r.morning != null || r.archDay != null || r.neck != null || r.hands != null)
-  return (
-    <Section title="Day by day" note="Last 14 days: morning and evening check-ins">
-      {rows.length === 0 ? (
-        <Empty>No pain scores in the last 14 days.</Empty>
-      ) : (
-        <Table
-          head={['Date', 'Arch AM', 'Arch day', 'Neck', 'Hands']}
-          rows={rows.map((r) => [
-            shortDate(r.d),
-            <Pain key="morning" score={r.morning} />,
-            <Pain key="archDay" score={r.archDay} />,
-            <Pain key="neck" score={r.neck} />,
-            r.hands == null ? <span key="hands" className="text-muted-foreground">–</span> : <Level key="hands" score={r.hands} label={tinglingLabel(r.hands)} />,
-          ])}
-        />
-      )}
-    </Section>
-  )
-}
+  const total = Math.max(steps.length, current)
 
-function Runs({ runs }: { runs: Data['runs'] }) {
   return (
-    <Section title="Runs" note="Logged in the app, last 4 weeks">
-      {runs.length === 0 ? (
-        <Empty>No runs logged in the last 4 weeks.</Empty>
-      ) : (
-        <Table
-          head={['Date', 'Ladder step', 'Clean']}
-          rows={runs.map((r) => [
-            shortDate(r.date),
-            r.run_step ?? '–',
-            r.clean == null ? '–' : r.clean ? 'Yes' : 'No',
-          ])}
-        />
-      )}
-    </Section>
-  )
-}
-
-function minutesText(s: number | null) {
-  if (s == null) return '–'
-  const m = Math.round(s / 60)
-  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60}` : `${m} min`
-}
-
-function WatchActivities({ watch }: { watch: Data['watch'] }) {
-  return (
-    <Section title="Watch activities" note="From Suunto via intervals.icu, last 4 weeks">
-      {watch.length === 0 ? (
-        <Empty>Nothing synced yet.</Empty>
-      ) : (
-        <Table
-          head={['Date', 'Sport', 'Time', 'km', 'HR', 'Load']}
-          rows={watch.map((a) => [
-            shortDate(a.date),
-            a.sport,
-            minutesText(a.duration_s),
-            a.distance_m ? (a.distance_m / 1000).toFixed(1) : '–',
-            a.hr_avg ?? '–',
-            a.load ?? '–',
-          ])}
-        />
-      )}
-    </Section>
-  )
-}
-
-function Adherence({ sessions, from, to }: { sessions: Data['sessions']; from: string; to: string }) {
-  // Weeks start on Monday; only sessions up to today count
-  const weeks = [...new Set(sessions.filter((s) => s.date >= from && s.date <= to).map((s) => weekOf(s.date)[0]))].sort()
-  const rows = weeks.map((w) => {
-    const inWeek = sessions.filter((s) => weekOf(s.date)[0] === w && s.date <= to)
-    const n = (status: string | null) => inWeek.filter((s) => s.status === status).length
-    return [`Week of ${shortDate(w)}`, n('done'), n('partial'), n('skipped'), n(null), inWeek.length]
-  })
-  return (
-    <Section title="Adherence" note="Planned sessions up to today, per week">
-      {rows.length === 0 ? (
-        <Empty>No planned sessions yet.</Empty>
-      ) : (
-        <Table head={['Week', 'Done', 'Partial', 'Skipped', 'Not logged', 'Planned']} rows={rows} />
-      )}
-    </Section>
-  )
-}
-
-export function Progress() {
-  const data = useProgress()
-  return (
-    <main className="mx-auto flex min-h-svh max-w-md flex-col gap-4 p-4">
-      <header className="pt-2">
-        <h1 className="text-2xl font-semibold">Progress</h1>
-        <p className="text-sm text-muted-foreground">Last 4 weeks</p>
-      </header>
-      {data === undefined ? (
-        <>
-          <Skeleton className="h-40 rounded-xl" />
-          <Skeleton className="h-40 rounded-xl" />
-        </>
-      ) : (
-        <>
-          <PainTrend symptoms={data.symptoms} to={data.to} />
-          <TestResults tests={data.tests} />
-          <Adherence sessions={data.sessions} from={data.from} to={data.to} />
-          <PainByDay symptoms={data.symptoms} to={data.to} />
-          <Runs runs={data.runs} />
-          <WatchActivities watch={data.watch} />
-        </>
-      )}
-    </main>
+    <Card className="col-span-2 min-h-36 gap-2 px-3.5 py-3.5">
+      <div className="flex items-start justify-between">
+        <span className="flex flex-col">
+          <span className="text-base font-semibold">Run ladder</span>
+          <span className="text-xs text-muted-foreground">Run–walk</span>
+        </span>
+        <TrendingUpIcon className="size-4 text-primary" />
+      </div>
+      <span className="flex items-baseline gap-1">
+        <span className="text-[28px] leading-tight font-bold">Step {current}</span>
+        {total > 0 && <span className="text-sm text-muted-foreground">of {total}</span>}
+      </span>
+      <span className="text-xs font-medium text-muted-foreground">
+        {runs.length === 0 ? 'No runs logged yet' : `${streak} clean ${streak === 1 ? 'run' : 'runs'} in a row`}
+      </span>
+      <span className="mt-auto flex gap-1" aria-hidden>
+        {Array.from({ length: total }, (_, i) => (
+          <span key={i} className={cn('h-2 flex-1 rounded-full', i < current ? 'bg-primary' : 'bg-muted')} />
+        ))}
+      </span>
+    </Card>
   )
 }

@@ -164,6 +164,8 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 - Add a library screen in the app: search, filter by tag, and pick videos for a session.
 
 ### Phase 4 · Progress
+**Redesign, 15 Oct (Suunto-like):** Progress has two tabs. **Dashboard:** this week (a block per session), three pain cards (arch first steps, neck over the day, hand tingling: word for the last 7 days, trend vs last week, 14 daily bars), heel raises, run ladder. A pain card opens a VO2max-style detail (4W/3M/6M, zone bar, daily chart on its zones, bike/run/tingling days underneath, "what goes with a bad day"). **Activities:** watch data by week. Arch is asked every morning; neck and hands every evening.
+
 **Daily check-ins and trend, 15 Oct:** a morning check-in (arch, first steps) and an evening one ("How was today?": arch, neck, hand tingling over the whole day; neck isn't asked during sessions any more). Progress opens with a **Pain trend** card: each area's last 7 days against the 7 before, in words, plus 28 daily dots. Today shows "This week: x of y done" and the heel-raise test countdown / results.
 
 **First version 15 Oct:** plain tables (no charts yet) on a Progress tab: heel-raise test L/R, pain per day (last 14 days), runs (step, clean), adherence per week. Charts come once there are a few weeks of data.

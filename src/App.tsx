@@ -24,7 +24,7 @@ function App() {
     <>
       {/* room for the bottom bar */}
       <div className={deep ? undefined : 'pb-20'}>
-        {tab === 'today' ? <Today onDeepChange={setDeep} /> : <Progress />}
+        {tab === 'today' ? <Today onDeepChange={setDeep} /> : <Progress onDeepChange={setDeep} />}
       </div>
       {!deep && (
       <nav className="fixed inset-x-0 bottom-0 border-t bg-card pb-[env(safe-area-inset-bottom)]">
