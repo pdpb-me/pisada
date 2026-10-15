@@ -72,7 +72,8 @@ async function upsert(rows) {
       method: 'POST',
       headers: {
         apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
+        // New secret keys (sb_secret_…) go in apikey only; a legacy service_role JWT also needs Bearer
+        ...(SERVICE_KEY.startsWith('sb_') ? {} : { Authorization: `Bearer ${SERVICE_KEY}` }),
         'Content-Type': 'application/json',
         Prefer: 'resolution=merge-duplicates,return=minimal',
       },
