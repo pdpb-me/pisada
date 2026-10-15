@@ -12,6 +12,7 @@ export type Progress = {
   sessions: { date: string; status: string | null }[]
   symptoms: Pick<Tables<'symptoms'>, 'date' | 'body_area' | 'timing' | 'score'>[]
   runs: Pick<Tables<'activities'>, 'date' | 'run_step' | 'clean'>[]
+  watch: Pick<Tables<'activities'>, 'date' | 'sport' | 'duration_s' | 'distance_m' | 'hr_avg' | 'load'>[]
   tests: Pick<Tables<'tests'>, 'date' | 'test' | 'side' | 'value' | 'unit'>[]
 }
 
@@ -25,10 +26,12 @@ export function useProgress() {
     Promise.all([
       supabase.from('plan_sessions').select('date, session_logs(status)').gte('date', from).lte('date', to),
       supabase.from('symptoms').select('date, body_area, timing, score').gte('date', from).lte('date', to),
-      supabase.from('activities').select('date, run_step, clean').eq('sport', 'run').gte('date', from).order('date'),
+      supabase.from('activities').select('date, run_step, clean').eq('sport', 'run').neq('source', 'intervals').gte('date', from).order('date'),
+      // watch data synced from intervals.icu
+      supabase.from('activities').select('date, sport, duration_s, distance_m, hr_avg, load').eq('source', 'intervals').gte('date', from).order('date', { ascending: false }),
       supabase.from('tests').select('date, test, side, value, unit').order('date'),
-    ]).then(([s, sy, a, t]) => {
-      const error = s.error ?? sy.error ?? a.error ?? t.error
+    ]).then(([s, sy, a, w, t]) => {
+      const error = s.error ?? sy.error ?? a.error ?? w.error ?? t.error
       if (error) toast.error(`Couldn't load progress: ${error.message}`)
       setData({
         from,
@@ -36,6 +39,7 @@ export function useProgress() {
         sessions: (s.data ?? []).map((x) => ({ date: x.date, status: x.session_logs?.status ?? null })),
         symptoms: sy.data ?? [],
         runs: a.data ?? [],
+        watch: w.data ?? [],
         tests: t.data ?? [],
       })
     })

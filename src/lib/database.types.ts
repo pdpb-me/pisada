@@ -25,10 +25,13 @@ export type Database = {
           distance_m: number | null
           duration_s: number | null
           elevation_m: number | null
+          external_id: string | null
           hr_avg: number | null
           id: string
+          load: number | null
           notes: string | null
           plan_session_id: string | null
+          raw: Json | null
           run_step: number | null
           source: string
           sport: string
@@ -41,10 +44,13 @@ export type Database = {
           distance_m?: number | null
           duration_s?: number | null
           elevation_m?: number | null
+          external_id?: string | null
           hr_avg?: number | null
           id?: string
+          load?: number | null
           notes?: string | null
           plan_session_id?: string | null
+          raw?: Json | null
           run_step?: number | null
           source?: string
           sport: string
@@ -57,10 +63,13 @@ export type Database = {
           distance_m?: number | null
           duration_s?: number | null
           elevation_m?: number | null
+          external_id?: string | null
           hr_avg?: number | null
           id?: string
+          load?: number | null
           notes?: string | null
           plan_session_id?: string | null
+          raw?: Json | null
           run_step?: number | null
           source?: string
           sport?: string

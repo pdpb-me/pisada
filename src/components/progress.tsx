@@ -115,7 +115,7 @@ function PainByDay({ symptoms, to }: { symptoms: Data['symptoms']; to: string })
 
 function Runs({ runs }: { runs: Data['runs'] }) {
   return (
-    <Section title="Runs" note="Last 4 weeks">
+    <Section title="Runs" note="Logged in the app, last 4 weeks">
       {runs.length === 0 ? (
         <Empty>No runs logged in the last 4 weeks.</Empty>
       ) : (
@@ -125,6 +125,34 @@ function Runs({ runs }: { runs: Data['runs'] }) {
             shortDate(r.date),
             r.run_step ?? '–',
             r.clean == null ? '–' : r.clean ? 'Yes' : 'No',
+          ])}
+        />
+      )}
+    </Section>
+  )
+}
+
+function minutesText(s: number | null) {
+  if (s == null) return '–'
+  const m = Math.round(s / 60)
+  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60}` : `${m} min`
+}
+
+function WatchActivities({ watch }: { watch: Data['watch'] }) {
+  return (
+    <Section title="Watch activities" note="From Suunto via intervals.icu, last 4 weeks">
+      {watch.length === 0 ? (
+        <Empty>Nothing synced yet.</Empty>
+      ) : (
+        <Table
+          head={['Date', 'Sport', 'Time', 'km', 'HR', 'Load']}
+          rows={watch.map((a) => [
+            shortDate(a.date),
+            a.sport,
+            minutesText(a.duration_s),
+            a.distance_m ? (a.distance_m / 1000).toFixed(1) : '–',
+            a.hr_avg ?? '–',
+            a.load ?? '–',
           ])}
         />
       )}
@@ -169,6 +197,7 @@ export function Progress() {
           <TestResults tests={data.tests} />
           <PainByDay symptoms={data.symptoms} to={data.to} />
           <Runs runs={data.runs} />
+          <WatchActivities watch={data.watch} />
           <Adherence sessions={data.sessions} from={data.from} to={data.to} />
         </>
       )}

@@ -59,10 +59,13 @@ One row per planned session at most: `plan_session_id` (unique), `status` (`done
 | `run_step` | ladder step number (see `run_steps`) |
 | `clean` | `true` / `false` / empty (= not decided yet). Pedro can set it on the run card or in the next morning's check-in. |
 | `plan_session_id` | the planned run it belongs to (unique). The app creates this row when a run session is marked done/partial. |
-| `source` | `manual` (app) or `suunto_screenshot` (you, from a screenshot) |
-| `duration_s`, `distance_m`, `hr_avg`, `elevation_m` | fill from Suunto screenshots |
+| `source` | `manual` (app), `intervals` (synced watch data, see below) or `suunto_screenshot` (old way, no longer needed) |
+| `duration_s`, `distance_m`, `hr_avg`, `elevation_m`, `load` | watch data: filled by the sync on `intervals` rows |
+| `external_id`, `raw` | sync only: the intervals.icu activity id, and the full activity as intervals.icu sent it |
 
-**From a Suunto screenshot:** if the run was planned, **update** the existing row for that `plan_session_id` (the app may have made it already) instead of inserting a second one. Set `source = 'suunto_screenshot'`.
+**Watch data arrives by itself (from 15 Oct).** Suunto → intervals.icu → a daily GitHub Action (07:00 Spain) → `activities` rows with `source = 'intervals'`: every sport (runs, bike commutes, weight training…), with time, distance, average HR, elevation and intervals.icu training `load` (HR-based). Don't ask for Suunto screenshots any more, and **don't write or edit `intervals` rows**: the next sync overwrites the watch columns.
+
+**Two rows for one run.** A logged run has its app row (`source = 'manual'`, with `plan_session_id`, `run_step`, `clean`) and, separately, its watch row (`source = 'intervals'`). They aren't linked yet; match them by `date` and `sport = 'run'`. Read the step and clean from the app row, and HR/distance/time/load from the watch row.
 
 ### `run_steps`: the run-walk ladder
 

@@ -37,6 +37,7 @@ export function useMorningCheck(date: string) {
         .select('id, clean')
         .eq('date', addDays(date, -1))
         .eq('sport', 'run')
+        .neq('source', 'intervals') // the run you logged, not its watch copy
         .limit(1),
     ])
     setNeeded((yesterday.data?.length ?? 0) > 0)
