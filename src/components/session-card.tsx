@@ -177,6 +177,7 @@ export function SessionCard({
   onRun,
   onComment,
   onTest,
+  onMove,
 }: {
   session: DaySession
   runSteps: RunStep[]
@@ -185,6 +186,7 @@ export function SessionCard({
   onRun: (changes: { run_step?: number; clean?: boolean | null }) => void
   onComment: (comment: string) => Promise<boolean>
   onTest: (spec: TestSpec, side: Side, value: number | null) => void
+  onMove: (date: string, slot: string) => Promise<boolean>
 }) {
   const [open, setOpen] = useState(false)
   // The exercise shown large; kept while the sheet closes so it doesn't blank out
@@ -265,6 +267,7 @@ export function SessionCard({
         onRun={onRun}
         onComment={onComment}
         onTest={onTest}
+        onMove={onMove}
       />
       <ExerciseDrawer
         slug={exSlug}

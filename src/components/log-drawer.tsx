@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/drawer'
 import { PainScale } from '@/components/pain-scale'
 import { RunLog } from '@/components/run-log'
+import { MoveSession } from '@/components/move-session'
 import { TestInputs } from '@/components/test-inputs'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -34,6 +35,7 @@ type LogProps = {
   onRun: (changes: { run_step?: number; clean?: boolean | null }) => void
   onComment: (comment: string) => Promise<boolean>
   onTest: (spec: TestSpec, side: Side, value: number | null) => void
+  onMove: (date: string, slot: string) => Promise<boolean>
 }
 
 // Everything you log about one session, in one bottom sheet. Taps save
@@ -63,6 +65,7 @@ function LogForm({
   onRun,
   onComment,
   onTest,
+  onMove,
   onClose,
 }: LogProps & { onClose: () => void }) {
   const comment = session.log?.comment ?? ''
@@ -141,6 +144,15 @@ function LogForm({
             />
           </div>
         )}
+
+        {/* Close first: a moved session leaves this day, and its card with it */}
+        <MoveSession
+          session={session}
+          onMove={async (date, slot) => {
+            onClose()
+            return onMove(date, slot)
+          }}
+        />
       </div>
 
       <DrawerFooter>

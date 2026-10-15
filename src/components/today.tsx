@@ -10,6 +10,7 @@ import { useRunSteps, type RunStep } from '@/hooks/use-run-steps'
 import { useWeek } from '@/hooks/use-week'
 import { addDays, longDate, todayISO, weekOf } from '@/lib/dates'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 // Opens on today. The week strip opens other days (e.g. to fix yesterday's log).
 export function Today() {
@@ -75,7 +76,7 @@ function DaySessions({
   runSteps: RunStep[]
   onStatusSaved: () => void
 }) {
-  const { sessions, setStatus, setPain, setRun, setComment, setTest } = useDay(date)
+  const { sessions, setStatus, setPain, setRun, setComment, setTest, moveSession } = useDay(date)
 
   async function changeStatus(s: DaySession, status: Status | null) {
     await setStatus(s, status)
@@ -107,6 +108,14 @@ function DaySessions({
           onRun={(changes) => setRun(s, changes)}
           onComment={(comment) => setComment(s, comment)}
           onTest={(spec, side, value) => setTest(s, spec, side, value)}
+          onMove={async (newDate, slot) => {
+            const ok = await moveSession(s, newDate, slot)
+            if (ok) {
+              toast.success(`Moved to ${longDate(newDate)}`)
+              onStatusSaved() // the week strip dots
+            }
+            return ok
+          }}
         />
       )}
     />

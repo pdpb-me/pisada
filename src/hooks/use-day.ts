@@ -201,5 +201,23 @@ export function useDay(date: string) {
     await load()
   }
 
-  return { sessions, setStatus, setPain, setRun, setComment, setTest }
+  // Move a session to another day (and/or slot). Anything already logged for it
+  // (pain during, run log, test results) moves to the new date too.
+  async function moveSession(session: DaySession, date: string, slot: string) {
+    const { error } = await supabase.from('plan_sessions').update({ date, slot }).eq('id', session.id)
+    if (error) {
+      toast.error(`Not moved: ${error.message}`)
+      return false
+    }
+    if (date !== session.date) {
+      if (session.log?.id)
+        await supabase.from('symptoms').update({ date }).eq('session_log_id', session.log.id)
+      if (session.activity) await supabase.from('activities').update({ date }).eq('id', session.activity.id)
+      if (session.tests.length) await supabase.from('tests').update({ date }).eq('plan_session_id', session.id)
+    }
+    await load()
+    return true
+  }
+
+  return { sessions, setStatus, setPain, setRun, setComment, setTest, moveSession }
 }

@@ -134,8 +134,8 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 **Phase 1 done 14 Oct 2026.**
 
 ### Backlog (found while loading Month 2)
-- [ ] **Move a session to another date.** Runs float and Pilates moves with the teacher; a "move to date" action on a card keeps the data honest
-- [ ] **Test cards write to `tests`.** `kind = 'test'` should ask for an L/R value (e.g. heel-raise reps) instead of putting the number in a comment
+- [x] **Move a session to another date.** Runs float and Pilates moves with the teacher; a "move to date" action on a card keeps the data honest. Done 15 Oct: "Move to another day" at the bottom of the Log drawer
+- [x] **Test cards write to `tests`.** `kind = 'test'` should ask for an L/R value (e.g. heel-raise reps) instead of putting the number in a comment. Done 15 Oct: Left/Right boxes in the log
 - [ ] **Check video metadata on the phone.** `duration_s` shows as a badge and `flags` show under the link (19 of 21 videos now have durations)
 
 **Until it's live,** keep logging month 2 anywhere (notes app). Don't let the build get in the way of training.
