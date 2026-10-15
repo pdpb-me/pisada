@@ -100,12 +100,11 @@ order by p.date, p.slot;
 ```
 
 **The two daily check-ins (from 15 Oct).**
-- **Morning** (opens by itself when yesterday had a run or tendon session): right arch, first steps out of bed → `body_area = 'arch', timing = 'next_morning'`. Also asks whether yesterday's run was clean.
-- **Evening** ("How was today?", opens by itself once after 19:00; can be filled for past days): over the **whole day** (work, bike, runs, PC), not just the exercises:
-  - right arch → `arch`, `evening` (0/2/5/8/10 words);
+- **Morning** (asked **every** morning, opens by itself once): right arch, first steps out of bed. **This is the arch measure.** → `body_area = 'arch', timing = 'next_morning'`. Also asks whether yesterday's run was clean.
+- **Evening** ("How was today?", opens by itself once after 19:00; can be filled for past days): over the **whole day** (work, bike, runs, PC), not just the exercises. From 15 Oct it asks only:
   - neck → `neck`, `evening` (same words). **Neck pain comes from the day, not the exercise routine:** Pedro notices it after cycling, after runs and after long PC time. Compare it with the day's synced activities (`activities` with `source = 'intervals'`, e.g. bike commutes) to find triggers;
   - **hand tingling** → `hands`, `evening`, `context = 'tingling'`, stored as None = 0, A bit = 2, A lot = 5. It's a real status linked to the neck: watch it alongside neck pain.
-- The app's Progress screen compares the last 7 days with the 7 before (average, needs ≥ 3 answers per week; ±1 point = a real change) for: arch mornings, arch evenings, neck evenings and hand tingling.
+- The app's Progress screen compares the last 7 days with the 7 before (average, needs ≥ 3 answers per week; ±1 point = a real change) for: arch mornings, neck evenings and hand tingling. (A few `arch`/`evening` answers exist from 15 Oct only; the arch is a morning measure.)
 
 **Evening check-ins, last 2 weeks:**
 

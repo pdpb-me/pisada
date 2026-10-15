@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { MoonIcon } from 'lucide-react'
+import { CheckCard } from '@/components/check-card'
 import { PainScale } from '@/components/pain-scale'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,8 +16,7 @@ import { painLabel } from '@/lib/pain'
 import { TINGLING_LEVELS, tinglingLabel, tinglingLevelFor } from '@/lib/tingling'
 
 const ASKED_KEY = 'pisada:evening-asked'
-const SHOW_FROM_HOUR = 17 // the reminder row appears on Today from 17:00
-const OPEN_FROM_HOUR = 19 // and the sheet opens by itself once, from 19:00
+const OPEN_FROM_HOUR = 19 // the sheet opens by itself once, from 19:00
 
 function alreadyAsked(date: string) {
   try {
@@ -34,15 +34,14 @@ function markAsked(date: string) {
   }
 }
 
-// "How was today?": arch, neck and hand tingling over the whole day. On today it
-// shows from the late afternoon; on past days (via the week strip) it's always there,
-// so a forgotten evening can be filled in the next day.
+// "How was today?": neck and hand tingling over the whole day. A card on Today
+// (and on past days, so a forgotten evening can be filled in the next day);
+// the sheet opens by itself once an evening.
 export function EveningCheck({ date, isToday }: { date: string; isToday: boolean }) {
   const { answers, save, complete } = useEveningCheck(date)
   const [open, setOpen] = useState(false)
   const [hour] = useState(() => new Date().getHours())
 
-  const visible = !isToday || hour >= SHOW_FROM_HOUR
   const shouldAutoOpen = isToday && hour >= OPEN_FROM_HOUR && !complete && !alreadyAsked(date)
   useEffect(() => {
     if (!shouldAutoOpen) return
@@ -51,42 +50,30 @@ export function EveningCheck({ date, isToday }: { date: string; isToday: boolean
     setOpen(true)
   }, [shouldAutoOpen, date])
 
-  if (!visible) return null
-
-  const summary = [
-    answers.arch && `arch ${painLabel(answers.arch.score)}`,
-    answers.neck && `neck ${painLabel(answers.neck.score)}`,
-    answers.hands && `tingling ${tinglingLabel(answers.hands.score)}`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const shown = [
+    answers.neck && { label: `Neck ${painLabel(answers.neck.score)}`, score: answers.neck.score },
+    answers.hands && { label: `Hands ${tinglingLabel(answers.hands.score)}`, score: answers.hands.score },
+  ].filter((a): a is { label: string; score: number } => !!a)
 
   return (
     <>
-      <button
-        type="button"
+      <CheckCard
+        title="Evening"
+        icon={MoonIcon}
+        asks="Neck · hands tingling"
+        answers={shown}
+        prompt={isToday ? 'How was today?' : 'How was that day?'}
         onClick={() => setOpen(true)}
-        className="flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-left text-sm ring-1 ring-foreground/10"
-      >
-        <MoonIcon className="size-5 shrink-0 text-muted-foreground" />
-        {summary ? (
-          <span>
-            {isToday ? 'Today' : 'That day'}: <span className="font-medium">{summary}</span>
-          </span>
-        ) : (
-          <span className="font-medium">{isToday ? 'How was today?' : 'How was that day?'}</span>
-        )}
-      </button>
+      />
 
       <Drawer open={open} onOpenChange={setOpen}>
         <DrawerContent>
           <div className="mx-auto flex min-h-0 w-full max-w-md flex-col">
             <DrawerHeader>
               <DrawerTitle>{isToday ? 'How was today?' : 'How was that day?'}</DrawerTitle>
-              <DrawerDescription>The whole day, not just the exercises: work, bike, runs.</DrawerDescription>
+              <DrawerDescription>The whole day: work, bike, runs. Not just the exercises.</DrawerDescription>
             </DrawerHeader>
             <div className="flex min-h-0 flex-col gap-6 overflow-y-auto px-4">
-              <PainScale label="Right arch" value={answers.arch?.score ?? null} onChange={(s) => save('arch', s)} />
               <PainScale label="Neck" value={answers.neck?.score ?? null} onChange={(s) => save('neck', s)} />
               <PainScale
                 label="Hands tingling"
@@ -97,7 +84,7 @@ export function EveningCheck({ date, isToday }: { date: string; isToday: boolean
               />
             </div>
             <DrawerFooter>
-              <Button size="lg" className="h-11" onClick={() => setOpen(false)}>
+              <Button size="lg" className="h-12 rounded-full text-base" onClick={() => setOpen(false)}>
                 {complete ? 'Done' : 'Later'}
               </Button>
             </DrawerFooter>

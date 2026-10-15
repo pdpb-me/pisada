@@ -3,28 +3,16 @@ import { toast } from 'sonner'
 import { addDays } from '@/lib/dates'
 import { supabase } from '@/lib/supabase'
 
-// Kinds that load the arch, so the next morning is worth asking about
-const ARCH_LOAD_KINDS = ['run', 'tendon']
-
-
-// "How's the arch this morning?" is asked when yesterday had a run or tendon
-// session that was done or partly done. One answer per morning.
+// "How's the arch this morning?" (first steps out of bed) is asked every morning:
+// the arch trend needs one answer a day. One answer per morning.
 // If yesterday had a run, it also asks whether that run was clean (when it
 // wasn't already set on the run card).
 export function useMorningCheck(date: string) {
-  const [needed, setNeeded] = useState(false)
   const [answer, setAnswer] = useState<{ id: string; score: number } | null>(null)
   const [run, setRun] = useState<{ id: string; clean: boolean | null } | null>(null)
 
   const load = useCallback(async () => {
-    const [yesterday, today, yesterdayRun] = await Promise.all([
-      supabase
-        .from('plan_sessions')
-        .select('id, session_logs!inner(status)')
-        .eq('date', addDays(date, -1))
-        .in('kind', ARCH_LOAD_KINDS)
-        .in('session_logs.status', ['done', 'partial'])
-        .limit(1),
+    const [today, yesterdayRun] = await Promise.all([
       supabase
         .from('symptoms')
         .select('id, score')
@@ -40,7 +28,6 @@ export function useMorningCheck(date: string) {
         .neq('source', 'intervals') // the run you logged, not its watch copy
         .limit(1),
     ])
-    setNeeded((yesterday.data?.length ?? 0) > 0)
     setAnswer(today.data?.[0] ?? null)
     setRun(yesterdayRun.data?.[0] ?? null)
   }, [date])
@@ -85,5 +72,5 @@ export function useMorningCheck(date: string) {
     return true
   }
 
-  return { needed, answer, save, run, saveClean }
+  return { answer, save, run, saveClean }
 }

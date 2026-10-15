@@ -2,12 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
-// "How was today?": arch, neck and hand tingling over the whole day, answered in
-// the evening. One answer per area per day (timing 'evening', no session).
-export type EveningArea = 'arch' | 'neck' | 'hands'
+// "How was today?": neck and hand tingling over the whole day, answered in the
+// evening (the arch is asked in the morning, first steps). One answer per area per day (timing 'evening', no session).
+export type EveningArea = 'neck' | 'hands'
 
 const ROW: Record<EveningArea, { side: string; context: string }> = {
-  arch: { side: 'R', context: 'evening check-in' },
   neck: { side: 'C', context: 'evening check-in' },
   hands: { side: 'C', context: 'tingling' },
 }
@@ -25,7 +24,7 @@ export function useEveningCheck(date: string) {
       .eq('timing', 'evening')
       .is('session_log_id', null)
     const next: Partial<Record<EveningArea, Answer>> = {}
-    for (const s of data ?? []) next[s.body_area as EveningArea] = { id: s.id, score: s.score }
+    for (const s of data ?? []) if (s.body_area in ROW) next[s.body_area as EveningArea] = { id: s.id, score: s.score }
     setAnswers(next)
   }, [date])
 
@@ -55,6 +54,6 @@ export function useEveningCheck(date: string) {
     return true
   }
 
-  const complete = !!(answers.arch && answers.neck && answers.hands)
+  const complete = !!(answers.neck && answers.hands)
   return { answers, save, complete }
 }

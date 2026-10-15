@@ -1,155 +1,198 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LogOutIcon } from 'lucide-react'
+import { toast } from 'sonner'
 import { EveningCheck } from '@/components/evening-check'
+import { ExerciseScreen } from '@/components/exercise-screen'
 import { MorningCheck } from '@/components/morning-check'
-import { SessionCard } from '@/components/session-card'
+import { PlanCard } from '@/components/plan-card'
+import { SessionScreen, type SessionHandlers } from '@/components/session-screen'
 import { WeekStrip } from '@/components/week-strip'
-import { WeekSummary } from '@/components/week-summary'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useDay, type DaySession, type Status } from '@/hooks/use-day'
+import { useDay, type DaySession } from '@/hooks/use-day'
 import { useRunSteps, type RunStep } from '@/hooks/use-run-steps'
-import { useWeek } from '@/hooks/use-week'
+import { useScreens } from '@/hooks/use-screens'
+import { useWeek, type DayDot } from '@/hooks/use-week'
 import { addDays, longDate, todayISO, weekOf } from '@/lib/dates'
 import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
 
-// Opens on today. The week strip opens other days (e.g. to fix yesterday's log).
-export function Today() {
+type Screen = { kind: 'day' } | { kind: 'session'; id: string } | { kind: 'exercise'; id: string; index: number }
+
+// Opens on today. Three screens: the day (plan + check-ins) → a session → an exercise.
+// The week strip opens other days (e.g. to fix yesterday's log).
+export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void }) {
   const today = todayISO()
   const [date, setDate] = useState(today)
   const days = weekOf(date)
   const week = useWeek(days)
   const runSteps = useRunSteps()
-  const isToday = date === today
 
+  // key: a fresh day (and screen stack) per date, so the previous day never shows while loading
   return (
-    <main className="mx-auto flex min-h-svh max-w-md flex-col gap-4 p-4">
-      <header className="flex items-start justify-between pt-2">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            {isToday
-              ? 'Today'
-              : new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' })}
-          </h1>
-          <p className="text-sm text-muted-foreground">{longDate(date)}</p>
-        </div>
-        <div className="flex items-center">
-          {!isToday && (
-            <Button variant="ghost" className="h-11" onClick={() => setDate(today)}>
-              Back to today
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-11"
-            aria-label="Log out"
-            onClick={() => supabase.auth.signOut()}
-          >
-            <LogOutIcon />
-          </Button>
-        </div>
-      </header>
-
-      <WeekStrip
-        days={days}
-        dots={week.dots}
-        selected={date}
-        today={today}
-        onSelect={setDate}
-        onWeek={(dir) => setDate(addDays(date, dir * 7))}
-      />
-
-      <WeekSummary dots={week.dots} today={today} />
-
-      {isToday && <MorningCheck date={date} />}
-
-      {/* key: a fresh view per day, so the previous day never shows while loading */}
-      <DaySessions key={date} date={date} runSteps={runSteps} onStatusSaved={week.reload} />
-
-      {/* the day's recap: today (from the evening) and past days, never future ones */}
-      {date <= today && <EveningCheck key={date} date={date} isToday={isToday} />}
-    </main>
-  )
-}
-
-function DaySessions({
-  date,
-  runSteps,
-  onStatusSaved,
-}: {
-  date: string
-  runSteps: RunStep[]
-  onStatusSaved: () => void
-}) {
-  const { sessions, setStatus, setPain, setRun, setComment, setTest, moveSession } = useDay(date)
-
-  async function changeStatus(s: DaySession, status: Status | null) {
-    await setStatus(s, status)
-    onStatusSaved()
-  }
-
-  if (sessions === undefined) {
-    return (
-      <>
-        <Skeleton className="h-40 rounded-xl" />
-        <Skeleton className="h-40 rounded-xl" />
-      </>
-    )
-  }
-  if (sessions.length === 0) {
-    return <p className="py-12 text-center text-muted-foreground">Nothing planned.</p>
-  }
-
-  return (
-    <SessionList
-      sessions={sessions}
-      renderCard={(s) => (
-        <SessionCard
-          key={s.id}
-          session={s}
-          runSteps={runSteps}
-          onStatus={(status) => changeStatus(s, status)}
-          onPain={(area, score) => setPain(s, area, score)}
-          onRun={(changes) => setRun(s, changes)}
-          onComment={(comment) => setComment(s, comment)}
-          onTest={(spec, side, value) => setTest(s, spec, side, value)}
-          onMove={async (newDate, slot) => {
-            const ok = await moveSession(s, newDate, slot)
-            if (ok) {
-              toast.success(`Moved to ${longDate(newDate)}`)
-              onStatusSaved() // the week strip dots
-            }
-            return ok
-          }}
-        />
-      )}
+    <Day
+      key={date}
+      date={date}
+      today={today}
+      days={days}
+      dots={week.dots}
+      onWeekChanged={week.reload}
+      onDate={setDate}
+      runSteps={runSteps}
+      onDeepChange={onDeepChange}
     />
   )
 }
 
-const SLOTS = [
-  { slot: 'am', label: 'Morning' },
-  { slot: 'pm', label: 'Evening' },
-]
-
-// Sessions under a Morning / Evening heading; a slot with nothing planned is left out.
-export function SessionList({
-  sessions,
-  renderCard,
+function Day({
+  date,
+  today,
+  days,
+  dots,
+  onWeekChanged,
+  onDate,
+  runSteps,
+  onDeepChange,
 }: {
-  sessions: DaySession[]
-  renderCard: (session: DaySession) => React.ReactNode
+  date: string
+  today: string
+  days: string[]
+  dots: Record<string, DayDot[]>
+  onWeekChanged: () => void
+  onDate: (date: string) => void
+  runSteps: RunStep[]
+  onDeepChange: (deep: boolean) => void
 }) {
-  return SLOTS.map(({ slot, label }) => {
-    const inSlot = sessions.filter((s) => s.slot === slot)
-    if (inSlot.length === 0) return null
-    return (
-      <section key={slot} className="flex flex-col gap-3">
-        <h2 className="pt-2 text-sm font-medium text-muted-foreground">{label}</h2>
-        {inSlot.map(renderCard)}
-      </section>
-    )
+  const day = useDay(date)
+  const nav = useScreens<Screen>({ kind: 'day' })
+  const isToday = date === today
+  const deep = nav.screen.kind !== 'day'
+
+  useEffect(() => {
+    onDeepChange(deep)
+  }, [deep, onDeepChange])
+
+  const handlers = (s: DaySession): SessionHandlers => ({
+    onStatus: async (status) => {
+      await day.setStatus(s, status)
+      onWeekChanged()
+    },
+    onPain: (area, score) => day.setPain(s, area, score),
+    onRun: (changes) => day.setRun(s, changes),
+    onComment: (comment) => day.setComment(s, comment),
+    onTest: (spec, side, value) => day.setTest(s, spec, side, value),
+    onMove: async (newDate, slot) => {
+      const ok = await day.moveSession(s, newDate, slot)
+      if (ok) {
+        toast.success(`Moved to ${longDate(newDate)}`)
+        onWeekChanged()
+      }
+      return ok
+    },
   })
+
+  const current = 'id' in nav.screen ? day.sessions?.find((s) => s.id === (nav.screen as { id: string }).id) : undefined
+
+  if (nav.screen.kind === 'session' && current) {
+    return (
+      <main className="mx-auto min-h-svh max-w-md">
+        <SessionScreen
+          session={current}
+          runSteps={runSteps}
+          handlers={handlers(current)}
+          onBack={nav.back}
+          onOpenExercise={(index) => nav.push({ kind: 'exercise', id: current.id, index })}
+        />
+      </main>
+    )
+  }
+  if (nav.screen.kind === 'exercise' && current) {
+    return (
+      <main className="mx-auto min-h-svh max-w-md bg-card">
+        <ExerciseScreen
+          session={current}
+          index={nav.screen.index}
+          onBack={nav.back}
+          onIndex={(index) => nav.replace({ kind: 'exercise', id: current.id, index })}
+        />
+      </main>
+    )
+  }
+
+  return (
+    <main className="mx-auto flex min-h-svh max-w-md flex-col">
+      <div className="flex flex-col gap-3.5 border-b bg-card px-3 pt-5 pb-3.5">
+        <header className="flex items-end justify-between px-1">
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-[28px] font-bold tracking-tight">
+              {isToday ? 'Today' : new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' })}
+            </h1>
+            <p className="text-sm text-muted-foreground">{longDate(date)}</p>
+          </div>
+          <div className="flex items-center">
+            {!isToday && (
+              <Button variant="ghost" className="h-11 text-primary" onClick={() => onDate(today)}>
+                Back to today
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 text-muted-foreground"
+              aria-label="Log out"
+              onClick={() => supabase.auth.signOut()}
+            >
+              <LogOutIcon />
+            </Button>
+          </div>
+        </header>
+        <WeekStrip
+          days={days}
+          dots={dots}
+          selected={date}
+          today={today}
+          onSelect={onDate}
+          onWeek={(dir) => onDate(addDays(date, dir * 7))}
+        />
+      </div>
+
+      <div className="flex flex-col gap-3 p-4">
+        {day.sessions === undefined ? (
+          <Skeleton className="h-48 rounded-[18px]" />
+        ) : (
+          <PlanCard sessions={day.sessions} onOpen={(id) => nav.push({ kind: 'session', id })} />
+        )}
+
+        {/* the day's check-ins: today and past days, never future ones */}
+        {date <= today && (
+          <div className="grid grid-cols-2 gap-3">
+            <MorningCheck date={date} isToday={isToday} />
+            <EveningCheck date={date} isToday={isToday} />
+          </div>
+        )}
+
+        <WeekCard dots={dots} thisWeek={days.includes(today)} />
+      </div>
+    </main>
+  )
+}
+
+// Calm facts, not streaks: how the shown week is going
+function WeekCard({ dots, thisWeek }: { dots: Record<string, DayDot[]>; thisWeek: boolean }) {
+  const all = Object.values(dots).flat()
+  if (all.length === 0) return null
+  const done = all.filter((d) => d.status === 'done' || d.status === 'partial').length
+  return (
+    <Card className="flex-row items-center justify-between gap-3 px-4 py-3.5">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-xs text-muted-foreground">{thisWeek ? 'This week' : 'That week'}</span>
+        <span className="text-base font-semibold">
+          {done} of {all.length} sessions done
+        </span>
+      </div>
+      <div className="flex h-2 w-28 rounded-full bg-muted" aria-hidden>
+        <span className="rounded-full bg-primary" style={{ width: `${Math.round((done / all.length) * 100)}%` }} />
+      </div>
+    </Card>
+  )
 }

@@ -16,19 +16,27 @@ type Tab = (typeof TABS)[number]['id']
 function App() {
   const session = useSession()
   const [tab, setTab] = useState<Tab>('today')
+  // a session or exercise screen has its own buttons at the bottom: hide the tab bar there
+  const [deep, setDeep] = useState(false)
   if (session === undefined) return null // still checking, a split second
   if (session === null) return <Login />
   return (
     <>
       {/* room for the bottom bar */}
-      <div className="pb-20">{tab === 'today' ? <Today /> : <Progress />}</div>
-      <nav className="fixed inset-x-0 bottom-0 border-t bg-background pb-[env(safe-area-inset-bottom)]">
+      <div className={deep ? undefined : 'pb-20'}>
+        {tab === 'today' ? <Today onDeepChange={setDeep} /> : <Progress />}
+      </div>
+      {!deep && (
+      <nav className="fixed inset-x-0 bottom-0 border-t bg-card pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex max-w-md">
           {TABS.map(({ id, label, icon: Icon }) => (
             <Button
               key={id}
               variant="ghost"
-              onClick={() => setTab(id)}
+              onClick={() => {
+                setTab(id)
+                setDeep(false)
+              }}
               aria-current={tab === id ? 'page' : undefined}
               className={cn('h-14 flex-1 flex-col gap-0.5 rounded-none text-xs', tab === id ? 'text-foreground' : 'text-muted-foreground')}
             >
@@ -38,6 +46,7 @@ function App() {
           ))}
         </div>
       </nav>
+      )}
     </>
   )
 }

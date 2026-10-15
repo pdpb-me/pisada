@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { SunriseIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { CheckCard } from '@/components/check-card'
 import { PainScale } from '@/components/pain-scale'
 import { CleanToggle } from '@/components/run-log'
 import { Button } from '@/components/ui/button'
@@ -35,21 +36,19 @@ function markAsked(date: string) {
 
 // Opens by itself once per morning; after "Later" it stays as a small
 // reminder at the top of Today until answered.
-export function MorningCheck({ date }: { date: string }) {
-  const { needed, answer, save, run, saveClean } = useMorningCheck(date)
+export function MorningCheck({ date, isToday }: { date: string; isToday: boolean }) {
+  const { answer, save, run, saveClean } = useMorningCheck(date)
   const [open, setOpen] = useState(false)
 
   const cleanPending = run != null && run.clean == null
   const complete = answer != null && !cleanPending
-  const shouldAutoOpen = needed && !complete && !alreadyAsked(date)
+  const shouldAutoOpen = isToday && !complete && !alreadyAsked(date)
   useEffect(() => {
     if (!shouldAutoOpen) return
     markAsked(date)
     // oxlint-disable-next-line react/set-state-in-effect -- opening once in response to loaded data
     setOpen(true)
   }, [shouldAutoOpen, date])
-
-  if (!needed) return null
 
   // Close once everything asked is answered
   async function pick(score: number | null) {
@@ -68,29 +67,14 @@ export function MorningCheck({ date }: { date: string }) {
 
   return (
     <>
-      <button
-        type="button"
+      <CheckCard
+        title="Morning"
+        icon={SunriseIcon}
+        asks={cleanPending && answer ? "Yesterday's run: clean?" : 'Arch, first steps'}
+        answers={answer ? [{ label: painLabel(answer.score), score: answer.score }] : []}
+        prompt="How's the arch?"
         onClick={() => setOpen(true)}
-        className="flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-left text-sm ring-1 ring-foreground/10"
-      >
-        <SunriseIcon className="size-5 shrink-0 text-muted-foreground" />
-        {complete ? (
-          <span>
-            Right arch this morning:{' '}
-            <span className="font-medium">{painLabel(answer.score)}</span>
-            {run && (
-              <>
-                {' · '}yesterday's run:{' '}
-                <span className="font-medium">{run.clean ? 'clean' : 'not clean'}</span>
-              </>
-            )}
-          </span>
-        ) : (
-          <span className="font-medium">
-            {answer ? "Was yesterday's run clean?" : "How's the arch this morning?"}
-          </span>
-        )}
-      </button>
+      />
 
       <Drawer open={open} onOpenChange={setOpen}>
         <DrawerContent>
@@ -98,7 +82,7 @@ export function MorningCheck({ date }: { date: string }) {
             <DrawerHeader>
               <DrawerTitle>How's the arch this morning?</DrawerTitle>
               <DrawerDescription>
-                Right foot, first steps out of bed. Yesterday had a run or tendon session.
+                Right foot, first steps out of bed.
               </DrawerDescription>
             </DrawerHeader>
             <div className="flex flex-col gap-6 px-4">

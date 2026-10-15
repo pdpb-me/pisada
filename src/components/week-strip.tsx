@@ -1,5 +1,4 @@
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import type { DayDot } from '@/hooks/use-week'
 import { cn } from '@/lib/utils'
 
@@ -15,7 +14,8 @@ const STATUS_WORD: Record<string, string> = {
   skipped: 'skipped',
 }
 
-// Mon-Sun, one dot per planned session. Tap a day to open it.
+// Mon-Sun as day buttons, one dot per planned session. The chosen day is filled;
+// today keeps a ring when another day is chosen.
 export function WeekStrip({
   days,
   dots,
@@ -32,14 +32,20 @@ export function WeekStrip({
   onWeek: (direction: -1 | 1) => void
 }) {
   return (
-    <nav className="flex items-center gap-1" aria-label="Week">
-      <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Previous week" onClick={() => onWeek(-1)}>
-        <ChevronLeftIcon />
-      </Button>
-      <div className="grid flex-1 grid-cols-7">
+    <nav className="flex items-center gap-0.5" aria-label="Week">
+      <button
+        type="button"
+        className="flex h-16 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
+        aria-label="Previous week"
+        onClick={() => onWeek(-1)}
+      >
+        <ChevronLeftIcon className="size-5" />
+      </button>
+      <div className="grid flex-1 grid-cols-7 gap-1">
         {days.map((iso) => {
           const d = new Date(`${iso}T12:00:00`)
           const sessions = dots[iso] ?? []
+          const on = iso === selected
           const summary = sessions.length
             ? sessions.map((s) => `${s.slot} ${s.status ? STATUS_WORD[s.status] : 'pending'}`).join(', ')
             : 'nothing planned'
@@ -48,24 +54,31 @@ export function WeekStrip({
               key={iso}
               type="button"
               onClick={() => onSelect(iso)}
-              aria-current={iso === selected ? 'date' : undefined}
+              aria-current={on ? 'date' : undefined}
               aria-label={`${d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}: ${summary}`}
               className={cn(
-                'flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg',
-                iso === selected && 'bg-muted',
+                'flex h-16 flex-col items-center justify-center gap-0.5 rounded-2xl',
+                on ? 'bg-primary text-primary-foreground' : 'bg-muted',
+                !on && iso === today && 'ring-2 ring-primary ring-inset',
               )}
             >
-              <span className={cn('text-xs text-muted-foreground', iso === today && 'font-semibold text-foreground')}>
+              <span className={cn('text-[11px] font-medium', !on && 'text-muted-foreground')}>
                 {d.toLocaleDateString('en-GB', { weekday: 'narrow' })}
               </span>
-              <span className={cn('text-sm', iso === today && 'font-semibold')}>{d.getDate()}</span>
-              <span className="flex h-2 gap-1">
+              <span className="text-base font-semibold">{d.getDate()}</span>
+              <span className="flex h-1.5 gap-0.5">
                 {sessions.map((s) => (
                   <span
                     key={s.id}
                     className={cn(
-                      'size-2 rounded-full',
-                      s.status ? DOT_CLASS[s.status] : 'border border-muted-foreground/50',
+                      'size-1.5 rounded-full',
+                      on
+                        ? s.status === 'done' || s.status === 'partial'
+                          ? 'bg-primary-foreground'
+                          : 'bg-primary-foreground/45'
+                        : s.status
+                          ? DOT_CLASS[s.status]
+                          : 'bg-foreground/20',
                     )}
                   />
                 ))}
@@ -74,9 +87,14 @@ export function WeekStrip({
           )
         })}
       </div>
-      <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Next week" onClick={() => onWeek(1)}>
-        <ChevronRightIcon />
-      </Button>
+      <button
+        type="button"
+        className="flex h-16 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
+        aria-label="Next week"
+        onClick={() => onWeek(1)}
+      >
+        <ChevronRightIcon className="size-5" />
+      </button>
     </nav>
   )
 }
