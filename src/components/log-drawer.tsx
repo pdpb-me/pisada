@@ -10,11 +10,13 @@ import {
 } from '@/components/ui/drawer'
 import { PainScale } from '@/components/pain-scale'
 import { RunLog } from '@/components/run-log'
+import { TestInputs } from '@/components/test-inputs'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { DaySession, Status } from '@/hooks/use-day'
 import type { RunStep } from '@/hooks/use-run-steps'
 import type { PainArea } from '@/lib/pain-areas'
+import { testFor, type Side, type TestSpec } from '@/lib/tests'
 
 const STATUSES: { value: Status; label: string }[] = [
   { value: 'done', label: 'Done' },
@@ -31,6 +33,7 @@ type LogProps = {
   onPain: (area: PainArea, score: number | null) => void
   onRun: (changes: { run_step?: number; clean?: boolean | null }) => void
   onComment: (comment: string) => Promise<boolean>
+  onTest: (spec: TestSpec, side: Side, value: number | null) => void
 }
 
 // Everything you log about one session, in one bottom sheet. Taps save
@@ -59,12 +62,14 @@ function LogForm({
   onPain,
   onRun,
   onComment,
+  onTest,
   onClose,
 }: LogProps & { onClose: () => void }) {
   const comment = session.log?.comment ?? ''
   const [draft, setDraft] = useState(comment)
   const [saving, setSaving] = useState(false)
   const skipped = session.log?.status === 'skipped'
+  const testSpec = testFor(session.exercises)
 
   async function save() {
     if (session.log && draft.trim() !== comment) {
@@ -110,6 +115,14 @@ function LogForm({
             value={painScore}
             onChange={(score) => onPain(painArea, score)}
             disabled={!session.log.id}
+          />
+        )}
+
+        {testSpec && session.log && !skipped && (
+          <TestInputs
+            spec={testSpec}
+            results={session.tests}
+            onChange={(side, value) => onTest(testSpec, side, value)}
           />
         )}
 

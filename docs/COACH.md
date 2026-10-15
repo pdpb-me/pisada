@@ -22,7 +22,7 @@ You (Claude, in the claude.ai project "Pisada do Pedro") read and write Pedro's 
 |---|---|
 | `date` | local date |
 | `slot` | `'am'` or `'pm'` (the app shows AM first) |
-| `kind` | free text, but these values drive the app: **`tendon`, `run`, `stability`** ask "Right arch, during" pain; **`neck`** asks "Neck, during" pain; **`run`** also gets the run log (ladder step + clean). Other kinds (`mobility`, `pilates`, `test`, …) show with no pain question. |
+| `kind` | free text, but these values drive the app: **`tendon`, `run`, `stability`, `test`** ask "Right arch, during" pain; **`neck`** asks "Neck, during" pain; **`run`** also gets the run log (ladder step + clean). Other kinds (`mobility`, `pilates`, `test`, …) show with no pain question. |
 | `title` | short, e.g. `Arch strength` |
 | `instructions` | one or two sentences shown on the card |
 | `video_ids` | array of YouTube ids, e.g. `'{CMD0zoHT1AI}'`. A link only shows if that id exists in `videos`. |
@@ -77,7 +77,7 @@ Progression rules (display only): clean = no arch niggle, or ≤ 3/10 during tha
 ### `videos`, `tests`, `reviews`
 
 - **`videos`:** `yt_id`, `title`, `duration_s`, `notes` (what's in it), `flags` (safety notes; the app shows them under the link). Add a video here before using its id in a plan.
-- **`tests`:** `date`, `test` (e.g. `sl_heel_raise`), `side`, `value`, `unit`.
+- **`tests`:** `date`, `test` (e.g. `sl_heel_raise`), `side`, `value`, `unit`. **The app writes these itself:** a session whose `exercises` include `sl_heel_raise_test` shows Left / Right number boxes in its log and saves one row per side with `test = 'sl_heel_raise'`, `unit = 'reps'` and `plan_session_id` set (one value per session + test + side; a correction overwrites). Read results with `select date, side, value from tests where test = 'sl_heel_raise' order by date, side;`. Rows you write by hand can leave `plan_session_id` null.
 - **`reviews`:** one per week (`week_start` = Monday): `summary` and `decisions`, written by you at the weekly check-in.
 
 ## Useful queries

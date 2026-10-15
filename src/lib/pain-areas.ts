@@ -10,6 +10,7 @@ const BY_KIND: Record<string, PainArea> = {
   run: ARCH,
   stability: ARCH,
   neck: NECK,
+  test: ARCH, // heel-raise test: stop if pain goes above 3/10
 }
 
 export function painAreaFor(kind: string): PainArea | null {

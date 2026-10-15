@@ -3,16 +3,19 @@ import { toast } from 'sonner'
 import type { Tables } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 import { lastRunStep } from '@/hooks/use-run-steps'
+import type { Side, TestSpec } from '@/lib/tests'
 
 export type Symptom = Tables<'symptoms'>
 export type SessionLog = Tables<'session_logs'> & { symptoms: Symptom[] }
 export type Video = Tables<'videos'>
 export type Activity = Tables<'activities'>
+export type TestResult = Tables<'tests'>
 export type Status = 'done' | 'partial' | 'skipped'
 
 export type DaySession = Tables<'plan_sessions'> & {
   log: SessionLog | null
   activity: Activity | null // the run log, for run sessions
+  tests: TestResult[] // measured results (e.g. heel-raise reps, L and R), for test sessions
   videos: Video[]
 }
 
@@ -23,7 +26,7 @@ export function useDay(date: string) {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('plan_sessions')
-      .select('*, session_logs(*, symptoms(*)), activities(*)')
+      .select('*, session_logs(*, symptoms(*)), activities(*), tests(*)')
       .eq('date', date)
       .order('slot')
       .order('created_at')
@@ -41,10 +44,11 @@ export function useDay(date: string) {
     }
 
     setSessions(
-      data.map(({ session_logs, activities, ...s }) => ({
+      data.map(({ session_logs, activities, tests, ...s }) => ({
         ...s,
         log: session_logs,
         activity: activities,
+        tests,
         // keep the order the plan lists them in
         videos: s.video_ids.flatMap((id) => videos.filter((v) => v.yt_id === id)),
       })),
@@ -90,6 +94,10 @@ export function useDay(date: string) {
     }
     if (status === 'skipped' && session.log?.symptoms.length) {
       await supabase.from('symptoms').delete().eq('session_log_id', session.log.id)
+    }
+    // Skipped or un-logged: test results for this session go too
+    if ((status === 'skipped' || status === null) && session.tests.length) {
+      await supabase.from('tests').delete().eq('plan_session_id', session.id)
     }
     if (session.kind === 'run') await syncRun(session, status)
     await load()
@@ -172,5 +180,26 @@ export function useDay(date: string) {
     return true
   }
 
-  return { sessions, setStatus, setPain, setRun, setComment }
+  // One test result per side (e.g. heel-raise reps). null clears it.
+  async function setTest(session: DaySession, spec: TestSpec, side: Side, value: number | null) {
+    const { error } =
+      value == null
+        ? await supabase
+            .from('tests')
+            .delete()
+            .eq('plan_session_id', session.id)
+            .eq('test', spec.test)
+            .eq('side', side)
+        : await supabase.from('tests').upsert(
+            { plan_session_id: session.id, date: session.date, test: spec.test, side, value, unit: spec.unit },
+            { onConflict: 'plan_session_id,test,side' },
+          )
+    if (error) {
+      toast.error(`Result not saved: ${error.message}`)
+      return
+    }
+    await load()
+  }
+
+  return { sessions, setStatus, setPain, setRun, setComment, setTest }
 }

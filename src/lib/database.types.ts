@@ -278,6 +278,7 @@ export type Database = {
           date: string
           id: string
           notes: string | null
+          plan_session_id: string | null
           side: string | null
           test: string
           unit: string | null
@@ -289,6 +290,7 @@ export type Database = {
           date?: string
           id?: string
           notes?: string | null
+          plan_session_id?: string | null
           side?: string | null
           test: string
           unit?: string | null
@@ -300,13 +302,22 @@ export type Database = {
           date?: string
           id?: string
           notes?: string | null
+          plan_session_id?: string | null
           side?: string | null
           test?: string
           unit?: string | null
           user_id?: string
           value?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tests_plan_session_id_fkey"
+            columns: ["plan_session_id"]
+            isOneToOne: false
+            referencedRelation: "plan_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       videos: {
         Row: {

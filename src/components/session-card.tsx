@@ -26,6 +26,7 @@ import type { DaySession, Status, Video } from '@/hooks/use-day'
 import type { RunStep } from '@/hooks/use-run-steps'
 import { painBand, painLabel, type PainBand } from '@/lib/pain'
 import { painAreaFor, type PainArea } from '@/lib/pain-areas'
+import { SIDES, testFor, type Side, type TestSpec } from '@/lib/tests'
 import { cn } from '@/lib/utils'
 
 // Small status icons instead of coloured blocks
@@ -123,6 +124,15 @@ function LogSummary({
   const log = session.log!
   const status = STATUS_ICON[log.status as Status]
   const run = session.activity
+  // e.g. "L 18 · R 15 reps" for a test session
+  const spec = testFor(session.exercises)
+  const sides = spec
+    ? SIDES.flatMap(({ side }) => {
+        const r = session.tests.find((t) => t.test === spec.test && t.side === side)
+        return r ? [`${side} ${r.value}`] : []
+      })
+    : []
+  const testResults = spec && sides.length > 0 ? `${sides.join(" · ")} ${spec.unit}` : null
   const Icon = status.icon
 
   return (
@@ -136,6 +146,12 @@ function LogSummary({
             <span>{painArea.short}</span>
             <span className={cn('size-2 rounded-full', PAIN_DOT[painBand(painScore)])} />
             <span className="text-foreground">{painLabel(painScore)}</span>
+          </>
+        )}
+        {testResults && (
+          <>
+            <span aria-hidden>·</span>
+            <span className="text-foreground">{testResults}</span>
           </>
         )}
         {run?.run_step != null && (
@@ -160,6 +176,7 @@ export function SessionCard({
   onPain,
   onRun,
   onComment,
+  onTest,
 }: {
   session: DaySession
   runSteps: RunStep[]
@@ -167,6 +184,7 @@ export function SessionCard({
   onPain: (area: PainArea, score: number | null) => void
   onRun: (changes: { run_step?: number; clean?: boolean | null }) => void
   onComment: (comment: string) => Promise<boolean>
+  onTest: (spec: TestSpec, side: Side, value: number | null) => void
 }) {
   const [open, setOpen] = useState(false)
   // The exercise shown large; kept while the sheet closes so it doesn't blank out
@@ -246,6 +264,7 @@ export function SessionCard({
         onPain={onPain}
         onRun={onRun}
         onComment={onComment}
+        onTest={onTest}
       />
       <ExerciseDrawer
         slug={exSlug}

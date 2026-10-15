@@ -75,7 +75,7 @@ function DaySessions({
   runSteps: RunStep[]
   onStatusSaved: () => void
 }) {
-  const { sessions, setStatus, setPain, setRun, setComment } = useDay(date)
+  const { sessions, setStatus, setPain, setRun, setComment, setTest } = useDay(date)
 
   async function changeStatus(s: DaySession, status: Status | null) {
     await setStatus(s, status)
@@ -106,6 +106,7 @@ function DaySessions({
           onPain={(area, score) => setPain(s, area, score)}
           onRun={(changes) => setRun(s, changes)}
           onComment={(comment) => setComment(s, comment)}
+          onTest={(spec, side, value) => setTest(s, spec, side, value)}
         />
       )}
     />
