@@ -20,8 +20,9 @@ It's the same stack as the thermometer project, plus login.
 | **GitHub repo** | Code | Can be public: the code isn't sensitive, the data is |
 | **Frontend** | Vite + React + TypeScript + Tailwind + [shadcn/ui](https://ui.shadcn.com/) | shadcn needs a build step, so a GitHub Action builds and deploys to Pages |
 | **GitHub Pages** | Hosting | Static site, installable on the phone |
-| **GitHub Actions** | Scheduled jobs | Weekly sync of new Ash videos (phase 3) |
+| **GitHub Actions** | Scheduled jobs | Daily intervals.icu activity sync (phase 2); weekly sync of new Ash videos (phase 3) |
 | **Google Cloud API key** | YouTube Data API | Stored only as a GitHub Actions secret |
+| **intervals.icu** | Watch data: Suunto Vertical → intervals.icu (free account, linked 15 Oct) | A daily GitHub Action copies activities into `activities`. API key stored only as a GitHub Actions secret |
 | **Cloud Run** | Not needed | — |
 
 ### The one new thing versus the thermometer project: privacy
@@ -90,7 +91,7 @@ videos            yt_id (pk), title, published_at, duration_s, views,
                   playlists[], tags[], notes, flags, available, synced_at
 
 plan_sessions     id, date, slot (am/pm), kind (tendon|run|stability|mobility|neck|pilates|test),
-                  title, video_ids[], instructions, block ('2026-10 month2')
+                  title, video_ids[], exercises[] (figure slugs), instructions, block ('2026-10 month2')
 
 session_logs      id, plan_session_id, status (done|partial|skipped), comment, logged_at
 
@@ -98,9 +99,12 @@ symptoms          id, date, body_area (arch|ankle|knee|neck|…), side (L|R|C),
                   score 0–10, timing (during|next_morning|general), context, session_log_id?
 
 activities        id, date, sport (run|bike|hike|pilates|…), duration_s, distance_m,
-                  hr_avg, elevation_m, run_step?, clean?, source (manual|suunto_screenshot), notes
+                  hr_avg, elevation_m, run_step?, clean?, plan_session_id?,
+                  source (manual|suunto_screenshot|intervals), notes
+                  + to add for the sync: external_id (intervals.icu id, unique per user),
+                    load (intervals training load), raw jsonb (fields not mapped yet)
 
-tests             id, date, test ('sl_heel_raise'), side, value, unit
+tests             id, date, test ('sl_heel_raise'), side, value, unit, plan_session_id?
 
 run_steps         step, label, reps, run_min, walk_min, total_run_min,
                   warmup_min, cooldown_min, block   ← the run-walk ladder; steps 6+ added by the coaching chat
@@ -141,7 +145,16 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 **Until it's live,** keep logging month 2 anywhere (notes app). Don't let the build get in the way of training.
 
 ### Phase 2 · Weekly loop
-- Weekly check-in in the claude.ai project. Claude reads the week, and you send Suunto screenshots that Claude turns into `activities` rows.
+- **Watch data arrives by itself** (decided 15 Oct): Suunto → intervals.icu → daily GitHub Action → Supabase `activities`. No more screenshots.
+  - Ruled out: the Suunto Cloud API (company partners only) and the Strava connector (needs paid Strava).
+  - intervals.icu: Suunto linked directly (not via Strava), activities + wellness downloaded, history back to mid-July. Planned-workout upload is off: Pisada owns the plan.
+  - **Schema:** `activities.external_id` (unique per user, for safe re-runs), `source = 'intervals'`, `load`, `raw jsonb`.
+  - **Action:** `GET /api/v1/athlete/{id}/activities?oldest=…&newest=…` with HTTP Basic auth (user `API_KEY`, the key as password); check field names against the API docs. Mapping, roughly: `type`→sport, `start_date_local`→date, `moving_time`→duration_s, `distance`→distance_m, `average_heartrate`→hr_avg, `total_elevation_gain`→elevation_m, `icu_training_load`→load. Upsert on (user_id, external_id) with Pedro's user_id. Rolling window of the last 7 days, so edits in intervals.icu come through; a one-off backfill from 2026-07-15.
+  - **Secrets** (GitHub Actions only): `INTERVALS_API_KEY`, `INTERVALS_ATHLETE_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PISADA_USER_ID`. The service_role key never goes into the app or the repo.
+  - **Watch data vs your taps:** HR, distance and time come from the watch; ladder step, clean y/n and pain stay manual in the app. *Open:* how a run's log (today an `activities` row tied to its session) joins its synced activity: by date, or a link the app fills in.
+  - Commutes (bike) are real load; separate them in Pisada if needed (auto-flagging is paid in intervals.icu).
+  - *Later, optional:* a `wellness` table (resting HR, HRV, sleep, sleep score) from `/athlete/{id}/wellness`. The Suunto → intervals wellness sync is flaky for some users, so it's nice-to-have.
+- Weekly check-in in the claude.ai project: Claude reads the week, including the synced activities.
 - Claude writes a `reviews` row and next week's `plan_sessions`.
 
 ### Phase 3 · Ash video library
@@ -158,7 +171,6 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 - Test results, left vs right
 
 ### Later, only if you'll actually use them
-- Automatic Suunto import through Strava or intervals.icu
 - A tap-the-body pain map
 - An in-app "ask Claude about this week" button
 
