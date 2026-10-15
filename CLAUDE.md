@@ -12,7 +12,10 @@ Personal training & body-log PWA for Pedro. Two screens, switched by the bottom 
 
 - **No admin rights.** Most installers are blocked. Don't try to work around IT policy.
 - **GitHub CLI `gh` is installed** (since 15 Oct), logged in as `pdpb-me`, at `C:\Program Files\GitHub CLI\gh.exe`. A session started before the install may not have it on PATH: call it by that full path.
-- **Pushing to GitHub: Claude pushes, but only after Pedro says OK** for that push (a push changes the live app). Commit locally, show what changed, ask, then `git push`. After pushing, watch the deploy (`gh run watch` / `gh run list`) and tell Pedro when it's live, or what failed.
+- **Pushing to GitHub: Claude pushes.** A push changes the live app, so:
+  - **Small things: push directly**, no need to ask (Pedro's rule, 15 Oct). Small = notes and docs only (`CLAUDE.md`, `COACH.md`, `PLAN.md`), text or wording fixes, and small bug fixes that don't change how data is saved.
+  - **Everything else: ask Pedro "OK to push?" first.** That's new features, database changes (migrations), anything that changes or deletes saved data, and anything he hasn't seen yet. When unsure, ask.
+  - After every push, watch the deploy (`gh run list` / `gh run watch`) and tell Pedro when it's live, or what failed.
 - Keep projects off the company OneDrive.
 
 ## Commands
