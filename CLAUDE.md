@@ -10,8 +10,9 @@ Personal training & body-log PWA for Pedro. Two screens, switched by the bottom 
 
 ## Environment limits (work laptop)
 
-- **No admin rights.** Installers are blocked (e.g. the GitHub CLI `gh` is not available). Don't try to work around IT policy.
-- **Pushing to GitHub: Pedro clicks "Push origin" in GitHub Desktop.** Claude commits locally; Pedro pushes.
+- **No admin rights.** Most installers are blocked. Don't try to work around IT policy.
+- **GitHub CLI `gh` is installed** (since 15 Oct), logged in as `pdpb-me`, at `C:\Program Files\GitHub CLI\gh.exe`. A session started before the install may not have it on PATH: call it by that full path.
+- **Pushing to GitHub: Claude pushes, but only after Pedro says OK** for that push (a push changes the live app). Commit locally, show what changed, ask, then `git push`. After pushing, watch the deploy (`gh run watch` / `gh run list`) and tell Pedro when it's live, or what failed.
 - Keep projects off the company OneDrive.
 
 ## Commands
