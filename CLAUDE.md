@@ -30,11 +30,11 @@ Personal training & body-log PWA for Pedro. Two screens, switched by the bottom 
 
 Vite 8 + React 19 + TypeScript + Tailwind 4 + shadcn/ui (Radix, style "Nova", neutral base, Geist), Supabase.
 
-- `src/components/`: screens and cards (`today.tsx`, `progress.tsx`, `session-card.tsx`, `log-drawer.tsx`, `exercise-figure.tsx`, `exercise-drawer.tsx`, `test-inputs.tsx`, `move-session.tsx`, `pain-scale.tsx`, `run-log.tsx`, `morning-check.tsx`, `week-strip.tsx`, `login.tsx`)
+- `src/components/`: screens and cards (`today.tsx`, `progress.tsx`, `session-card.tsx`, `log-drawer.tsx`, `exercise-figure.tsx`, `exercise-drawer.tsx`, `test-inputs.tsx`, `move-session.tsx`, `evening-check.tsx`, `week-summary.tsx`, `pain-scale.tsx`, `run-log.tsx`, `morning-check.tsx`, `week-strip.tsx`, `login.tsx`)
 - `src/components/ui/`: shadcn components (add them with `npx shadcn@latest add <name>`, don't hand-roll; the shadcn MCP server is in `.mcp.json`)
 - `src/exercises/`: `rig.ts` + `catalog.ts`, the 8 exercise line figures (typed port of `docs/figures/`; keep pose numbers as they are)
-- `src/hooks/`: data loading/saving (`use-day.ts`, `use-week.ts`, `use-progress.ts`, `use-morning-check.ts`, `use-run-steps.ts`, `use-session.ts`)
-- `src/lib/`: `supabase.ts` (client), `database.types.ts` (generated), `pain.ts` (5 levels), `pain-areas.ts` (kind → pain question), `tests.ts` (exercise → measured test), `dates.ts`
+- `src/hooks/`: data loading/saving (`use-day.ts`, `use-week.ts`, `use-progress.ts`, `use-evening-check.ts`, `use-next-test.ts`, `use-morning-check.ts`, `use-run-steps.ts`, `use-session.ts`)
+- `src/lib/`: `supabase.ts` (client), `database.types.ts` (generated), `pain.ts` (5 levels), `pain-areas.ts` (kind → pain question), `tests.ts` (exercise → measured test), `tingling.ts` (hand tingling levels), `dates.ts`
 - `supabase/migrations/`: every schema change, as SQL
 
 ## Database (Supabase project `pisada`, ref `swubnxbzjqjeuiwlauwi`)

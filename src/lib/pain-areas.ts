@@ -3,13 +3,13 @@
 export type PainArea = { body_area: string; side: string | null; label: string; short: string }
 
 const ARCH: PainArea = { body_area: 'arch', side: 'R', label: 'Right arch, during', short: 'Arch' }
-const NECK: PainArea = { body_area: 'neck', side: 'C', label: 'Neck, during', short: 'Neck' }
 
 const BY_KIND: Record<string, PainArea> = {
   tendon: ARCH,
   run: ARCH,
   stability: ARCH,
-  neck: NECK,
+  // neck: not asked during its session. Neck pain shows up over the day (bike, PC, after runs),
+  // so the evening check-in asks it instead.
   test: ARCH, // heel-raise test: stop if pain goes above 3/10
 }
 

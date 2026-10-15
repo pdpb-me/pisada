@@ -9,16 +9,23 @@ const BAND_CLASS: Record<PainBand, string> = {
   high: 'data-[state=on]:bg-pain-high data-[state=on]:text-pain-high-foreground',
 }
 
+type Level = { score: number; label: string; band: PainBand }
+
+// levels / levelFor: the 5 pain words by default; other scales (e.g. hand tingling) pass their own.
 export function PainScale({
   label,
   value,
   onChange,
   disabled,
+  levels = PAIN_LEVELS,
+  levelFor = painLevelFor,
 }: {
   label: string
   value: number | null
   onChange: (score: number | null) => void
   disabled?: boolean
+  levels?: readonly Level[]
+  levelFor?: (score: number) => number
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -27,13 +34,13 @@ export function PainScale({
         type="single"
         variant="outline"
         spacing={1}
-        value={value == null ? '' : String(painLevelFor(value))}
+        value={value == null ? '' : String(levelFor(value))}
         onValueChange={(v) => onChange(v === '' ? null : Number(v))}
         disabled={disabled}
         className="flex w-full"
         aria-label={label}
       >
-        {PAIN_LEVELS.map((l) => (
+        {levels.map((l) => (
           <ToggleGroupItem
             key={l.score}
             value={String(l.score)}

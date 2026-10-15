@@ -22,7 +22,7 @@ You (Claude, in the claude.ai project "Pisada do Pedro") read and write Pedro's 
 |---|---|
 | `date` | local date |
 | `slot` | `'am'` or `'pm'` (the app shows AM first) |
-| `kind` | free text, but these values drive the app: **`tendon`, `run`, `stability`, `test`** ask "Right arch, during" pain; **`neck`** asks "Neck, during" pain; **`run`** also gets the run log (ladder step + clean). Other kinds (`mobility`, `pilates`, `test`, …) show with no pain question. |
+| `kind` | free text, but these values drive the app: **`tendon`, `run`, `stability`, `test`** ask "Right arch, during" pain (`neck` sessions ask nothing during: neck pain is asked in the evening check-in); **`run`** also gets the run log (ladder step + clean). Other kinds (`mobility`, `pilates`, `test`, …) show with no pain question. |
 | `title` | short, e.g. `Arch strength` |
 | `instructions` | one or two sentences shown on the card |
 | `video_ids` | array of YouTube ids, e.g. `'{CMD0zoHT1AI}'`. A link only shows if that id exists in `videos`. |
@@ -46,10 +46,10 @@ One row per planned session at most: `plan_session_id` (unique), `status` (`done
 
 | column | notes |
 |---|---|
-| `body_area` | `arch`, `neck`, … (the arch is the **right** foot) |
+| `body_area` | `arch`, `neck`, `hands`, … (the arch is the **right** foot; `hands` = hand tingling) |
 | `side` | `L`, `R`, `C` (centre, for the neck) |
 | `score` | 0–10. **The app asks 5 words and stores: None = 0, Mild = 2, Moderate = 5, Severe = 8, Unbearable = 10.** So ≤ 3 = acceptable, 4–6 = hold / back off, 7+ = stop. If you write a score yourself, any 0–10 value is shown in its band. |
-| `timing` | `during` (tied to a session log via `session_log_id`), `next_morning` (the morning check-in, `session_log_id` empty), `general` |
+| `timing` | `during` (tied to a session log via `session_log_id`), `next_morning` (the morning check-in: arch, first steps out of bed), `evening` (the evening check-in: how the **whole day** was), `general`. Check-ins have `session_log_id` empty and hold one answer per day, area and timing. |
 
 ### `activities`: runs and other sport
 
@@ -97,6 +97,22 @@ left join symptoms s on s.session_log_id = l.id and s.timing = 'during'
 left join activities a on a.plan_session_id = p.id
 where p.date between '2026-10-19' and '2026-10-25'
 order by p.date, p.slot;
+```
+
+**The two daily check-ins (from 15 Oct).**
+- **Morning** (opens by itself when yesterday had a run or tendon session): right arch, first steps out of bed → `body_area = 'arch', timing = 'next_morning'`. Also asks whether yesterday's run was clean.
+- **Evening** ("How was today?", opens by itself once after 19:00; can be filled for past days): over the **whole day** (work, bike, runs, PC), not just the exercises:
+  - right arch → `arch`, `evening` (0/2/5/8/10 words);
+  - neck → `neck`, `evening` (same words). **Neck pain comes from the day, not the exercise routine:** Pedro notices it after cycling, after runs and after long PC time. Compare it with the day's synced activities (`activities` with `source = 'intervals'`, e.g. bike commutes) to find triggers;
+  - **hand tingling** → `hands`, `evening`, `context = 'tingling'`, stored as None = 0, A bit = 2, A lot = 5. It's a real status linked to the neck: watch it alongside neck pain.
+- The app's Progress screen compares the last 7 days with the 7 before (average, needs ≥ 3 answers per week; ±1 point = a real change) for: arch mornings, arch evenings, neck evenings and hand tingling.
+
+**Evening check-ins, last 2 weeks:**
+
+```sql
+select date, body_area, score from symptoms
+where timing = 'evening'
+order by date desc, body_area limit 42;
 ```
 
 **Morning arch check-ins:**

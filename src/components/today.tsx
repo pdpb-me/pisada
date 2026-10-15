@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { LogOutIcon } from 'lucide-react'
+import { EveningCheck } from '@/components/evening-check'
 import { MorningCheck } from '@/components/morning-check'
 import { SessionCard } from '@/components/session-card'
 import { WeekStrip } from '@/components/week-strip'
+import { WeekSummary } from '@/components/week-summary'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDay, type DaySession, type Status } from '@/hooks/use-day'
@@ -59,10 +61,15 @@ export function Today() {
         onWeek={(dir) => setDate(addDays(date, dir * 7))}
       />
 
+      <WeekSummary dots={week.dots} today={today} />
+
       {isToday && <MorningCheck date={date} />}
 
       {/* key: a fresh view per day, so the previous day never shows while loading */}
       <DaySessions key={date} date={date} runSteps={runSteps} onStatusSaved={week.reload} />
+
+      {/* the day's recap: today (from the evening) and past days, never future ones */}
+      {date <= today && <EveningCheck key={date} date={date} isToday={isToday} />}
     </main>
   )
 }
