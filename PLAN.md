@@ -151,6 +151,7 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 - Add a library screen in the app: search, filter by tag, and pick videos for a session.
 
 ### Phase 4 · Progress
+**First version 15 Oct:** plain tables (no charts yet) on a Progress tab: heel-raise test L/R, pain per day (last 14 days), runs (step, clean), adherence per week. Charts come once there are a few weeks of data.
 - Pain by body area over time
 - Running volume and ladder step over time
 - Adherence (done / planned)
