@@ -32,6 +32,12 @@ The thermometer dashboard was public. This app holds health data, so:
 - **Row Level Security is on for every table.** Each row belongs to your user id, and the policies allow only you.
 - **The browser only gets the `anon` key.** The `service_role` key never goes into the frontend or the repo.
 
+
+### Where the data lives, and backups (decided 15 Oct)
+- All data is in the Supabase project `pisada` (PostgreSQL, region `eu-west-1`, free plan). The app is only a window onto it: a new or different app can connect to the same database, and any PostgreSQL tool can read it. Watch data is also kept by Suunto and intervals.icu.
+- **No automatic backup, no export button** (Pedro's choice). The free plan has no downloadable backups, so the only copy is the live database.
+- **Backup on request:** when Pedro asks (e.g. before migrating or leaving the app), export every table (schema from `supabase/migrations/` plus the rows, as JSON or CSV, or a `pg_dump`) to a place **outside the public repo**, and check the row counts match.
+- Free projects pause after ~7 days without activity (data kept, restore from the dashboard). Daily use and the daily intervals.icu sync keep it awake.
 ---
 
 ## Design language (DLS)
