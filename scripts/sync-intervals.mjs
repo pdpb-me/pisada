@@ -29,7 +29,8 @@ const oldest = process.env.OLDEST || iso(new Date(Date.now() - DAYS * 86400000))
 // intervals.icu activity type → Pisada sport
 const SPORT = {
   Run: 'run', TrailRun: 'run', VirtualRun: 'run', Treadmill: 'run',
-  Ride: 'bike', VirtualRide: 'bike', EBikeRide: 'bike', GravelRide: 'bike', MountainBikeRide: 'bike',
+  Ride: 'bike', VirtualRide: 'bike', EBikeRide: 'bike', EMountainBikeRide: 'bike', GravelRide: 'bike',
+  MountainBikeRide: 'bike',
   Walk: 'walk', Hike: 'hike',
   WeightTraining: 'strength', Workout: 'workout', Yoga: 'yoga', Pilates: 'pilates',
   Swim: 'swim', OpenWaterSwim: 'swim',
