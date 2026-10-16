@@ -166,8 +166,8 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 - Claude writes a `reviews` row and next week's `plan_sessions`.
 
 ### Phase 3 · Ash video library
-- Import the 607-video dataset into `videos`, and add the playlist membership.
-- Add tags (foot, ankle, glute, balance, mobility, neck, pre-run, post-run…) and Claude's notes and safety flags.
+- ✅ Import the 607-video dataset into `videos`, with playlist membership (done 16 Oct, `scripts/videos-to-sql.mjs`).
+- ✅ Rough tags from titles (foot, ankle, glute, balance, mobility, neck, warmup, cooldown…). The coach corrects tags and adds notes and safety flags as videos get used.
 - Set up a weekly GitHub Action that calls the YouTube API, adds new uploads and refreshes view counts.
 - Add a library screen in the app: search, filter by tag, and pick videos for a session.
 

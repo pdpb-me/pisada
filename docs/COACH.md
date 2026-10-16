@@ -114,7 +114,11 @@ Progression rules (display only): clean = no arch niggle, or ≤ 3/10 during tha
 
 ### `videos`, `tests`, `reviews`
 
-- **`videos`:** `yt_id`, `title`, `duration_s`, `notes` (what's in it), `flags` (safety notes; the app shows them under the link). Add a video here before using its id in a plan.
+- **`videos`:** all of Ash's (Run Better With Ash) YouTube videos, 607 as of 16 Oct 2026. Columns: `yt_id`, `title`, `published_at`, `duration_s`, `views`, `playlists`, `tags`, `notes` (what's in it), `flags` (safety notes; the app shows them under the link). Search here instead of asking Pedro for the spreadsheet. Add a video here before using its id in a plan if it's missing (newer than the import).
+  - `playlists`: Ash's own playlists: `PRE RUN WARMUP`, `RUNNERS STRENGTH SESSIONS`, `Morning Stretches`, `Don't Skip The Stretch`, `Hip Mobility Fix 7 Days`. Most videos are in none.
+  - `tags`: **a rough first guess from the title** (69 videos have none). Body areas `foot`, `ankle`, `calf`, `knee`, `hip`, `glute`, `hamstring`, `core`, `back`, `neck`, `shoulder`; types `mobility`, `stretch`, `strength`, `warmup`, `cooldown`, `plyometric`, `balance`, `live`. When you watch-check or learn what a video really contains, fix its tags and write `notes`; a re-import keeps tags, notes and flags already set.
+  - Example: short foot/ankle videos, `select yt_id, title, duration_s/60 as min from videos where tags && '{foot,ankle}' and duration_s < 900 order by views desc;`. Title search: `where title ilike '%plantar%'`.
+  - Re-import (Pedro asks Claude Code): `node scripts/videos-to-sql.mjs <dataset.xlsx> <out-folder>` writes upsert SQL in batches.
 - **`tests`:** `date`, `test` (e.g. `sl_heel_raise`), `side`, `value`, `unit`. **The app writes these itself:** a session whose `exercises` include `sl_heel_raise_test` shows Left / Right number boxes in its log and saves one row per side with `test = 'sl_heel_raise'`, `unit = 'reps'` and `plan_session_id` set (one value per session + test + side; a correction overwrites). Read results with `select date, side, value from tests where test = 'sl_heel_raise' order by date, side;`. Rows you write by hand can leave `plan_session_id` null.
 - **`reviews`:** one per week (`week_start` = Monday): `summary` and `decisions`, written by you at the weekly check-in.
 
