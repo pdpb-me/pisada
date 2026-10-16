@@ -11,6 +11,7 @@ const BY_KIND: Record<string, PainArea> = {
   // neck: not asked during its session. Neck pain shows up over the day (bike, PC, after runs),
   // so the evening check-in asks it instead.
   test: ARCH, // heel-raise test: stop if pain goes above 3/10
+  hike: ARCH, // no run log or ladder step: only kind 'run' gets those
 }
 
 export function painAreaFor(kind: string): PainArea | null {

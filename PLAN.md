@@ -96,7 +96,7 @@ The tables are deliberately generic, so that adding neck, a knee, cycling or gym
 videos            yt_id (pk), title, published_at, duration_s, views,
                   playlists[], tags[], notes, flags, available, synced_at
 
-plan_sessions     id, date, slot (am/pm), kind (tendon|run|stability|mobility|neck|pilates|test),
+plan_sessions     id, date, slot (am/pm), kind (tendon|run|stability|mobility|neck|pilates|test|hike),
                   title, video_ids[], exercises[] (figure slugs), instructions, block ('2026-10 month2')
 
 session_logs      id, plan_session_id, status (done|partial|skipped), comment, logged_at

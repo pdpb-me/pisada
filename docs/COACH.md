@@ -47,7 +47,7 @@ Start a new chat for each week. When Pedro says **"weekly check-in"**:
 |---|---|
 | `date` | local date |
 | `slot` | `'am'` or `'pm'` (the app shows AM first) |
-| `kind` | free text, but these values drive the app: **`tendon`, `run`, `stability`, `test`** ask "Right arch, during" pain (`neck` sessions ask nothing during: neck pain is asked in the evening check-in); **`run`** also gets the run log (ladder step + clean). Other kinds (`mobility`, `pilates`, `test`, …) show with no pain question. |
+| `kind` | free text, but these values drive the app: **`tendon`, `run`, `stability`, `test`, `hike`** ask "Right arch, during" pain (`neck` sessions ask nothing during: neck pain is asked in the evening check-in); **`run`** also gets the run log (ladder step + clean). Other kinds (`mobility`, `pilates`, …) show with no pain question. |
 | `title` | short, e.g. `Arch strength` |
 | `instructions` | one or two sentences shown on the card |
 | `video_ids` | array of YouTube ids, e.g. `'{CMD0zoHT1AI}'`. A link only shows if that id exists in `videos`. |
