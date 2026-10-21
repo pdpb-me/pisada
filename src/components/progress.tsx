@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FlagIcon, ScaleIcon, TrendingUpIcon } from 'lucide-react'
-import { ActivitiesList } from '@/components/activities-list'
+import { Activities } from '@/components/activities-list'
 import { LadderDrawer } from '@/components/run-ladder'
 import { PainDetail } from '@/components/pain-detail'
 import { WeightDetail } from '@/components/weight-detail'
@@ -85,7 +85,7 @@ export function ProgressView({ data, onDeepChange }: { data: Data | undefined; o
           <Skeleton className="h-52 rounded-[18px]" />
         </div>
       ) : tab === 'activities' ? (
-        <ActivitiesList watch={data.watch} today={data.today} />
+        <Activities today={data.today} />
       ) : (
         <div className="flex flex-col gap-3 p-4">
           <WeekCard today={data.today} />

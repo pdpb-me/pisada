@@ -11,7 +11,7 @@ export type Progress = {
   today: string
   symptoms: Symptom[] // a year, so 6 months can be compared with the 6 before
   runs: Pick<Tables<'activities'>, 'date' | 'run_step' | 'clean'>[] // logged in the app, newest first
-  watch: WatchActivity[] // synced from intervals.icu, 6 months, newest first
+  watch: WatchActivity[] // synced from intervals.icu, 6 months, newest first (pain detail marks)
   tests: Pick<Tables<'tests'>, 'date' | 'test' | 'side' | 'value' | 'unit'>[]
   weights: { date: string; kg: number }[] // a year, oldest first
 }
