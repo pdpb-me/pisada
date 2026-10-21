@@ -45,3 +45,38 @@ export function useWatchMonth(month: string) {
 
   return { items, oldestMonth, reload }
 }
+
+// When the watch data was last copied, and "Sync now" (Edge Function sync-intervals)
+export function useSync(onSynced: () => void) {
+  const [syncedAt, setSyncedAt] = useState<string | null | undefined>(undefined)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('sync_status').select('synced_at').eq('source', 'intervals').maybeSingle()
+    setSyncedAt(data?.synced_at ?? null)
+  }, [])
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- fetching data is what this effect is for
+    load()
+  }, [load])
+
+  const syncNow = async () => {
+    setBusy(true)
+    const { data, error } = await supabase.functions.invoke<{ count: number; synced_at: string }>('sync-intervals', {
+      method: 'POST',
+    })
+    setBusy(false)
+    if (error) {
+      // the function's own message, when it sent one
+      const body = await (error.context as Response | undefined)?.json?.().catch(() => null)
+      toast.error(`Couldn't sync: ${body?.error ?? error.message}`)
+      return
+    }
+    setSyncedAt(data?.synced_at ?? new Date().toISOString())
+    toast.success(data?.count ? `Synced: ${data.count} activities from the last 7 days` : 'Synced: nothing new')
+    onSynced()
+  }
+
+  return { syncedAt, busy, syncNow }
+}

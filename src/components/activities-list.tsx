@@ -7,14 +7,16 @@ import {
   DumbbellIcon,
   FootprintsIcon,
   MountainIcon,
+  RefreshCwIcon,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { WatchActivity } from '@/hooks/use-progress'
-import { useWatchMonth } from '@/hooks/use-watch-month'
-import { toISODate, weekOf } from '@/lib/dates'
+import { useSync, useWatchMonth } from '@/hooks/use-watch-month'
+import { addDays, toISODate, weekOf } from '@/lib/dates'
+import { cn } from '@/lib/utils'
 
 const SPORT: Record<string, { label: string; icon: LucideIcon }> = {
   run: { label: 'Run', icon: FootprintsIcon },
@@ -38,6 +40,16 @@ function monthName(month: string) {
   return new Date(`${month}-01T12:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 }
 
+// 'today 07:02', 'yesterday 07:02' or 'Mon 19 Oct, 07:02' (phone's time)
+function syncedText(at: string, today: string) {
+  const d = new Date(at)
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const day = toISODate(d)
+  if (day === today) return `today ${time}`
+  if (day === addDays(today, -1)) return `yesterday ${time}`
+  return `${d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}, ${time}`
+}
+
 function shiftMonth(month: string, by: number) {
   const d = new Date(`${month}-01T12:00:00`)
   d.setMonth(d.getMonth() + by)
@@ -48,11 +60,23 @@ function shiftMonth(month: string, by: number) {
 export function Activities({ today }: { today: string }) {
   const thisMonth = weekOf(today)[0].slice(0, 7) // the month this week belongs to
   const [month, setMonth] = useState(thisMonth)
-  const { items, oldestMonth } = useWatchMonth(month)
+  const { items, oldestMonth, reload } = useWatchMonth(month)
+  const sync = useSync(reload)
   const time = (items ?? []).reduce((t, a) => t + (a.duration_s ?? 0), 0)
 
   return (
     <div className="flex flex-col">
+      <div className="flex items-center justify-between gap-3 px-4 pt-3">
+        <span className="text-xs text-muted-foreground">
+          {sync.syncedAt === undefined ? ' ' : sync.syncedAt ? `Last synced ${syncedText(sync.syncedAt, today)}` : 'Not synced yet'}
+          <br />
+          From the watch, every morning
+        </span>
+        <Button variant="outline" className="h-11 rounded-full" disabled={sync.busy} onClick={sync.syncNow}>
+          <RefreshCwIcon className={cn(sync.busy && 'animate-spin motion-reduce:animate-none')} />
+          {sync.busy ? 'Syncing…' : 'Sync now'}
+        </Button>
+      </div>
       <nav className="flex items-center justify-between px-2 pt-3" aria-label="Month">
         <Button
           variant="ghost"

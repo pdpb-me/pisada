@@ -281,6 +281,30 @@ export type Database = {
           },
         ]
       }
+      sync_status: {
+        Row: {
+          count: number
+          source: string
+          synced_at: string
+          user_id: string
+          via: string
+        }
+        Insert: {
+          count?: number
+          source?: string
+          synced_at?: string
+          user_id?: string
+          via?: string
+        }
+        Update: {
+          count?: number
+          source?: string
+          synced_at?: string
+          user_id?: string
+          via?: string
+        }
+        Relationships: []
+      }
       tests: {
         Row: {
           created_at: string

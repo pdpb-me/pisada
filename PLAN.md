@@ -107,8 +107,12 @@ symptoms          id, date, body_area (arch|ankle|knee|neck|…), side (L|R|C),
 activities        id, date, sport (run|bike|hike|pilates|…), duration_s, distance_m,
                   hr_avg, elevation_m, run_step?, clean?, plan_session_id?,
                   source (manual|suunto_screenshot|intervals), notes
-                  + to add for the sync: external_id (intervals.icu id, unique per user),
+                  + for the sync: external_id (intervals.icu id, unique per user),
                     load (intervals training load), raw jsonb (fields not mapped yet)
+
+sync_status       (user_id, source) pk, synced_at, count, via (daily|app)
+                  ← last copy from intervals.icu: the daily GitHub Action or "Sync now"
+                    (Edge Function sync-intervals; secret INTERVALS_API_KEY in Supabase)
 
 tests             id, date, test ('sl_heel_raise'), side, value, unit, plan_session_id?
 
