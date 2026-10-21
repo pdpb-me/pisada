@@ -107,6 +107,7 @@ function Day({
         <SessionScreen
           session={current}
           runSteps={runSteps}
+          currentStep={currentStep}
           handlers={handlers(current)}
           onBack={nav.back}
           onOpenExercise={(index) => nav.push({ kind: 'exercise', id: current.id, index })}

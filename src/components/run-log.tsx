@@ -8,10 +8,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { Activity } from '@/hooks/use-day'
 import type { RunStep } from '@/hooks/use-run-steps'
-
-function num(n: number) {
-  return Number.isInteger(n) ? String(n) : String(n).replace('.', ',')
-}
+import { LADDER_RULES, num } from '@/lib/ladder'
 
 // Clean yes/no as two buttons that can both be off: often you only know the
 // next morning, and the morning check-in asks again if it's still unset.
@@ -83,11 +80,7 @@ export function RunLog({
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">Clean run?</span>
         <CleanToggle value={activity.clean} onChange={(clean) => onChange({ clean })} />
-        <p className="text-xs text-muted-foreground">
-          Clean = no arch niggle, or ≤ 3/10 during that's back to baseline next morning.
-          Up a step after 2 clean runs in a row; a niggle that lingers holds the step;
-          over 3/10 drops one. Decided at the weekly check-in.
-        </p>
+        <p className="text-xs text-muted-foreground">{LADDER_RULES}</p>
       </div>
     </div>
   )

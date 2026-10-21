@@ -5,6 +5,7 @@ import { LogDrawer } from '@/components/log-drawer'
 import { LogSummary } from '@/components/log-summary'
 import { sessionPain } from '@/lib/session-status'
 import { MoveSession } from '@/components/move-session'
+import { LadderDrawer, StepParts } from '@/components/run-ladder'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -18,6 +19,7 @@ import { exerciseFor } from '@/exercises/catalog'
 import type { DaySession, Status, Video } from '@/hooks/use-day'
 import type { RunStep } from '@/hooks/use-run-steps'
 import type { PainArea } from '@/lib/pain-areas'
+import { runStepFor, runStepMinutes } from '@/lib/session-time'
 import type { Side, TestSpec } from '@/lib/tests'
 
 export type SessionHandlers = {
@@ -77,18 +79,23 @@ function VideoRow({ video }: { video: Video }) {
 export function SessionScreen({
   session,
   runSteps,
+  currentStep,
   handlers,
   onBack,
   onOpenExercise,
 }: {
   session: DaySession
   runSteps: RunStep[]
+  currentStep: number | null
   handlers: SessionHandlers
   onBack: () => void
   onOpenExercise: (index: number) => void
 }) {
   const [logOpen, setLogOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
+  const [ladderOpen, setLadderOpen] = useState(false)
+  const stepNumber = session.kind === 'run' ? runStepFor(session, currentStep) : null
+  const step = runSteps.find((s) => s.step === stepNumber)
   const exercises = session.exercises.filter((slug) => exerciseFor(slug))
   const { area, score } = sessionPain(session)
 
@@ -108,6 +115,19 @@ export function SessionScreen({
       </header>
 
       <div className="flex flex-col gap-3 p-4">
+        {step && (
+          <Card className="gap-1 px-4 py-3">
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="text-base font-semibold">Step {step.step}</span>
+              <span className="text-sm text-muted-foreground">~{Math.round(runStepMinutes(step))} min</span>
+            </span>
+            <StepParts step={step} />
+            <Button variant="ghost" className="h-11 text-primary" onClick={() => setLadderOpen(true)}>
+              See the whole ladder
+            </Button>
+          </Card>
+        )}
+
         {(exercises.length > 0 || session.videos.length > 0) && (
           <Card className="gap-0 px-4 py-1">
             {exercises.map((slug, i) => {
@@ -181,6 +201,8 @@ export function SessionScreen({
         onComment={handlers.onComment}
         onTest={handlers.onTest}
       />
+
+      <LadderDrawer open={ladderOpen} onOpenChange={setLadderOpen} steps={runSteps} current={stepNumber} />
 
       <Drawer open={moveOpen} onOpenChange={setMoveOpen}>
         <DrawerContent>

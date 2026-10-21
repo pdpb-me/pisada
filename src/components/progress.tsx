@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FlagIcon, ScaleIcon, TrendingUpIcon } from 'lucide-react'
 import { ActivitiesList } from '@/components/activities-list'
+import { LadderDrawer } from '@/components/run-ladder'
 import { PainDetail } from '@/components/pain-detail'
 import { WeightDetail } from '@/components/weight-detail'
 import { Card } from '@/components/ui/card'
@@ -245,9 +246,11 @@ function HeelRaiseCard({ data }: { data: Data }) {
   )
 }
 
-// Run–walk ladder: the current step (the coach moves it), and the clean streak
+// Run–walk ladder: the current step (the coach moves it), and the clean streak.
+// Tap: every step of the ladder.
 function LadderCard({ runs }: { runs: Data['runs'] }) {
   const steps = useRunSteps()
+  const [open, setOpen] = useState(false)
   const current = runs.find((r) => r.run_step != null)?.run_step ?? 1
   let streak = 0
   for (const r of runs) {
@@ -257,27 +260,34 @@ function LadderCard({ runs }: { runs: Data['runs'] }) {
   const total = Math.max(steps.length, current)
 
   return (
-    <Card className="min-h-44 gap-2 px-3.5 py-3.5">
-      <div className="flex items-start justify-between">
-        <span className="flex flex-col">
-          <span className="text-base font-semibold">Run ladder</span>
-          <span className="text-xs text-muted-foreground">Run–walk</span>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex min-h-44 flex-col gap-2 rounded-[18px] bg-card p-3.5 text-left ring-1 ring-foreground/10"
+      >
+        <span className="flex items-start justify-between">
+          <span className="flex flex-col">
+            <span className="text-base font-semibold">Run ladder</span>
+            <span className="text-xs text-muted-foreground">Run–walk</span>
+          </span>
+          <TrendingUpIcon className="size-4 text-primary" />
         </span>
-        <TrendingUpIcon className="size-4 text-primary" />
-      </div>
-      <span className="flex items-baseline gap-1">
-        <span className="text-[28px] leading-tight font-bold">Step {current}</span>
-        {total > 0 && <span className="text-sm text-muted-foreground">of {total}</span>}
-      </span>
-      <span className="text-xs font-medium text-muted-foreground">
-        {runs.length === 0 ? 'No runs logged yet' : `${streak} clean ${streak === 1 ? 'run' : 'runs'} in a row`}
-      </span>
-      <span className="mt-auto flex gap-1" aria-hidden>
-        {Array.from({ length: total }, (_, i) => (
-          <span key={i} className={cn('h-2 flex-1 rounded-full', i < current ? 'bg-primary' : 'bg-muted')} />
-        ))}
-      </span>
-    </Card>
+        <span className="flex items-baseline gap-1">
+          <span className="text-[28px] leading-tight font-bold">Step {current}</span>
+          {total > 0 && <span className="text-sm text-muted-foreground">of {total}</span>}
+        </span>
+        <span className="text-xs font-medium text-muted-foreground">
+          {runs.length === 0 ? 'No runs logged yet' : `${streak} clean ${streak === 1 ? 'run' : 'runs'} in a row`}
+        </span>
+        <span className="mt-auto flex w-full gap-1" aria-hidden>
+          {Array.from({ length: total }, (_, i) => (
+            <span key={i} className={cn('h-2 flex-1 rounded-full', i < current ? 'bg-primary' : 'bg-muted')} />
+          ))}
+        </span>
+      </button>
+      <LadderDrawer open={open} onOpenChange={setOpen} steps={steps} current={current} />
+    </>
   )
 }
 

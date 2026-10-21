@@ -26,12 +26,17 @@ export function sessionMinutes(s: DaySession, steps: RunStep[], currentStep: num
   if (s.kind === 'run') {
     const step = steps.find((st) => st.step === (s.activity?.run_step ?? currentStep))
     if (step) {
-      total += Number(step.warmup_min) + Number(step.reps) * (Number(step.run_min) + Number(step.walk_min)) + Number(step.cooldown_min)
+      total += runStepMinutes(step)
       known = true
     }
   }
   if (s.kind === 'pilates' && !known) return CLASS_MINUTES
   return known ? Math.max(1, Math.round(total)) : null
+}
+
+// A whole ladder step: warm-up walk + run–walk reps + cool-down walk
+export function runStepMinutes(step: RunStep) {
+  return Number(step.warmup_min) + Number(step.reps) * (Number(step.run_min) + Number(step.walk_min)) + Number(step.cooldown_min)
 }
 
 // The ladder step a run will use: its own if logged, else the last logged run's
