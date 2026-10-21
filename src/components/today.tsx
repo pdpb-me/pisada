@@ -27,7 +27,8 @@ export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void 
   // the week shown in the strip: swiping or the arrows change it, the chosen day stays
   const [monday, setMonday] = useState(() => weekOf(today)[0])
   const days = weekOf(monday)
-  const week = useWeek(days)
+  // dots for the week before and after too: the strip shows them while it's dragged
+  const week = useWeek([addDays(monday, -7), addDays(monday, 13)])
   const choose = (d: string) => {
     setDate(d)
     setMonday(weekOf(d)[0])
@@ -194,7 +195,7 @@ function Day({
           </div>
         )}
 
-        <WeekCard dots={dots} thisWeek={days.includes(today)} />
+        <WeekCard dots={Object.fromEntries(days.map((d) => [d, dots[d] ?? []]))} thisWeek={days.includes(today)} />
       </div>
     </main>
   )
