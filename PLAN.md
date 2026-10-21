@@ -49,7 +49,7 @@ The thermometer dashboard was public. This app holds health data, so:
 2. **Today first.** The app opens on today. History and progress are one tap away, never in the way.
 3. **Calm, not gamified.** No streaks, confetti or guilt for skipped days. A skip is data.
 4. **Colour carries meaning only for pain and status.** Everything else stays neutral.
-5. **Dark and light from day one.** Follow the system setting by default (shadcn supports both out of the box).
+5. **Light only** (Pedro's choice, 21 Oct), even when the phone is in dark mode. The `.dark` colours were removed from `src/index.css`.
 
 ### Tokens (set as shadcn theme variables)
 | Token | Use |
