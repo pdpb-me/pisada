@@ -103,8 +103,9 @@ export function useDay(date: string) {
     await load()
   }
 
-  // A run that happened (done/partial) gets a run log, starting at the step of
-  // the last logged run. Skipped or un-logged: the run log goes.
+  // A run that happened (done/partial) gets a run log, starting at the planned
+  // step, else the step of the last logged run (Pedro can change it: he may have
+  // run a different step). Skipped or un-logged: the run log goes.
   async function syncRun(session: DaySession, status: Status | null) {
     const ran = status === 'done' || status === 'partial'
     if (ran && !session.activity) {
@@ -112,7 +113,7 @@ export function useDay(date: string) {
         plan_session_id: session.id,
         date: session.date,
         sport: 'run',
-        run_step: await lastRunStep(),
+        run_step: session.run_step ?? (await lastRunStep()),
         source: 'manual',
       })
       if (error) toast.error(`Run log not saved: ${error.message}`)

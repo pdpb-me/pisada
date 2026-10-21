@@ -21,8 +21,8 @@ Start a new chat for each week. When Pedro says **"weekly check-in"**:
 1. **Read the last 7 days** (queries under "Useful queries"): session logs and comments, morning arch, evening neck and hands, test results, weight (weekly average, not single days), and watch activities (`source = 'intervals'`: runs, bike commutes, gym).
 2. **Summarise in 5–8 short lines:** what was done vs planned, how arch, neck and tingling moved compared with the week before, anything worrying (pain 4+ two days in a row, neck worse after long rides, a run that wasn't clean).
 3. **Propose next week:** sessions per day and slot, the ladder step (only up after 2 clean runs in a row), test dates. Wait for his OK.
-4. **Write it:** `plan_sessions` for next week (with `exercises` slugs where they apply), and one `reviews` row (`week_start` = that Monday, `summary`, `decisions`).
-5. **Tell him** it's in the app.
+4. **Write it:** `plan_sessions` for next week (with `exercises` slugs where they apply, and **`run_step` on every run**), and one `reviews` row (`week_start` = that Monday, `summary`, `decisions`).
+5. **Tell him** it's in the app, and that the runs reach his watch after the next sync (07:00 or 20:00).
 
 ## Training rules (short)
 
@@ -53,15 +53,20 @@ Start a new chat for each week. When Pedro says **"weekly check-in"**:
 | `video_ids` | array of YouTube ids, e.g. `'{CMD0zoHT1AI}'`. A link only shows if that id exists in `videos`. |
 | `exercises` | array of exercise slugs, in display order, e.g. `'{chin_nod,t_hold,thoracic_ext_chair}'`. Each shows a line-drawing figure on the card; tapping it opens the figure large with cues and setup. Valid slugs: `chin_nod`, `t_hold`, `thoracic_ext_chair`, `ball_squeeze_heel_raise`, `sl_heel_raise_step`, `banded_inversion`, `sl_heel_hold_towel`, `sl_heel_raise_test`. **An unknown slug shows nothing**, and adding a new exercise needs a code change (the catalog lives in the app's code, not the database). Defaults to `'{}'`. Keep `instructions` filled too: the large view shows them under **"Today's plan"** (above the cues), so write what to do today (sets, reps, holds). If empty, the catalog's default dose shows instead. |
 | `date`, `slot` (moved) | **Pedro can move a session himself** in the app ("Move to another day" in its log). Its date/slot change in place; pain, run log and test results move with it. So a session on a different day than planned is a deliberate move, not an error. **Who changes the plan:** Pedro moves single sessions himself (a class that changes day, a run to Saturday). For bigger changes (a trip, a sick week, several days) he asks you: re-plan in `plan_sessions`, keeping the rules (runs ≥ 48 h apart, ladder steps, the right side +1 set), and tell him what moved. |
+| `run_step` | `run` sessions only: the **planned** ladder step (a `run_steps.step`), set by you at the weekly check-in (golden rule 2). Empty = not decided yet. The app shows "Step 1 — 6 × (2′ jog / 2′ walk)" on the run and starts the run log at this step (Pedro changes it there if he ran a different step). |
 | `block` | which plan it belongs to, e.g. `'2026-10 month2'`. Makes a block easy to find, replace or delete. |
+
+**Runs go to the watch by themselves (from 21 Oct).** Twice a day (07:00 and 20:00 Spain) a GitHub Action sends every `run` with a `run_step` in the next 10 days to intervals.icu as a structured workout (walk warm-up → jog/walk repeats → walk cool-down, built from `run_steps`), and intervals.icu sends it to the Suunto watch as a guide. Named after the title, e.g. `Run B — Step 1`. **A run with no `run_step` is not sent.** Changing a run's step or date, or Pedro skipping or moving it, updates or removes the watch workout at the next sync. Pedro can also run the sync by hand ("sync now" in GitHub). Don't create workouts in intervals.icu yourself: Pisada owns the plan, intervals.icu is only the pipe to the watch.
 
 Example: one day of Month 2.
 
 ```sql
-insert into plan_sessions (date, slot, kind, title, instructions, video_ids, block, user_id) values
- ('2026-10-19', 'am', 'tendon', 'Arch strength', 'Heel-raised holds 5 × 45 s, then toe yoga 2 × 10. Pain ≤ 3/10 is OK.', '{CMD0zoHT1AI}', '2026-10 month2', '8cbe648a-0d47-40f1-9a38-5cb26f37fd24'),
- ('2026-10-19', 'pm', 'run',    'Run–walk ladder', 'Current ladder step. Stop if arch pain goes above 3/10.', '{}', '2026-10 month2', '8cbe648a-0d47-40f1-9a38-5cb26f37fd24');
+insert into plan_sessions (date, slot, kind, title, instructions, video_ids, run_step, block, user_id) values
+ ('2026-10-19', 'am', 'tendon', 'Arch strength', 'Heel-raised holds 5 × 45 s, then toe yoga 2 × 10. Pain ≤ 3/10 is OK.', '{CMD0zoHT1AI}', null, '2026-10 month2', '8cbe648a-0d47-40f1-9a38-5cb26f37fd24'),
+ ('2026-10-19', 'pm', 'run',    'Run A', 'Stop if arch pain goes above 3/10.', '{}', 1, '2026-10 month2', '8cbe648a-0d47-40f1-9a38-5cb26f37fd24');
 ```
+
+Setting the step on runs already planned: `update plan_sessions set run_step = 2 where kind = 'run' and date between '2026-10-26' and '2026-11-01';`
 
 ### `weights`: body weight (from 15 Oct)
 
@@ -97,7 +102,7 @@ One row per planned session at most: `plan_session_id` (unique), `status` (`done
 | `duration_s`, `distance_m`, `hr_avg`, `elevation_m`, `load` | watch data: filled by the sync on `intervals` rows |
 | `external_id`, `raw` | sync only: the intervals.icu activity id, and the full activity as intervals.icu sent it |
 
-**Watch data arrives by itself (from 15 Oct).** Suunto → intervals.icu → a daily GitHub Action (07:00 Spain) → `activities` rows with `source = 'intervals'`: every sport (runs, bike commutes, weight training…), with time, distance, average HR, elevation and intervals.icu training `load` (HR-based). Don't ask for Suunto screenshots any more, and **don't write or edit `intervals` rows**: the next sync overwrites the watch columns.
+**Watch data arrives by itself (from 15 Oct).** Suunto → intervals.icu → a GitHub Action (07:00 and 20:00 Spain) → `activities` rows with `source = 'intervals'`: every sport (runs, bike commutes, weight training…), with time, distance, average HR, elevation and intervals.icu training `load` (HR-based). Don't ask for Suunto screenshots any more, and **don't write or edit `intervals` rows**: the next sync overwrites the watch columns.
 
 **Two rows for one run.** A logged run has its app row (`source = 'manual'`, with `plan_session_id`, `run_step`, `clean`) and, separately, its watch row (`source = 'intervals'`). They aren't linked yet; match them by `date` and `sport = 'run'`. Read the step and clean from the app row, and HR/distance/time/load from the watch row.
 

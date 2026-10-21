@@ -18,12 +18,15 @@ function plural(n: number, word: string) {
 // "3 exercises + 1 video · ~13 min"
 function meta(s: DaySession, steps: RunStep[], currentStep: number | null) {
   const minutes = sessionMinutes(s, steps, currentStep)
-  const time = minutes != null ? `~${minutes} min` : null
+  const time = minutes != null ? `~${minutes} min` : null // no-break space: "~32 min" wraps as one
   let what: string
   const test = testFor(s.exercises)
   const step = runStepFor(s, currentStep)
+  // a planned (or logged) step is certain, so it gets its label: "Step 1 — 6 × (2′ jog / 2′ walk)"
+  const label = (s.activity?.run_step ?? s.run_step) != null && steps.find((st) => st.step === step)?.label
   if (s.kind === 'pilates') what = 'Class with your teacher'
   else if (test) what = `Test · ${test.label.toLowerCase()}`
+  else if (s.kind === 'run' && label) what = `Step ${step} — ${label}`
   else if (s.kind === 'run' && step != null) what = `Run–walk · step ${step}`
   else {
     const exercises = s.exercises.filter((slug) => exerciseFor(slug)).length
@@ -97,7 +100,7 @@ export function PlanCard({
             {s.log ? (
               <LogSummary session={s} showComment={false} />
             ) : (
-              <span className="line-clamp-1 text-sm text-muted-foreground">{meta(s, runSteps, currentStep)}</span>
+              <span className="line-clamp-2 text-sm text-muted-foreground">{meta(s, runSteps, currentStep)}</span>
             )}
           </span>
           <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />

@@ -94,6 +94,7 @@ export type Database = {
           id: string
           instructions: string | null
           kind: string
+          run_step: number | null
           slot: string
           title: string
           user_id: string
@@ -107,6 +108,7 @@ export type Database = {
           id?: string
           instructions?: string | null
           kind: string
+          run_step: number | null
           slot: string
           title: string
           user_id?: string
@@ -120,6 +122,7 @@ export type Database = {
           id?: string
           instructions?: string | null
           kind?: string
+          run_step?: number | null
           slot?: string
           title?: string
           user_id?: string

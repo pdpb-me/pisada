@@ -44,7 +44,7 @@ Vite 8 + React 19 + TypeScript + Tailwind 4 + shadcn/ui (Radix, style "Nova", ne
 - The browser uses only the **publishable key** (in `src/lib/supabase.ts`). Never put a secret/service_role key in the repo.
 - Login: email OTP. Supabase sends **8-digit** codes (`CODE_LENGTH` in `login.tsx` must match) via custom SMTP (Pedro's Gmail). Sign-ups are **off**.
 - Pain: 5 words stored as 0/2/5/8/10 (`src/lib/pain.ts`); the arch is the **right** foot.
-- The run ladder lives in `run_steps`. The app **never auto-advances** the step.
+- The run ladder lives in `run_steps`. The app **never auto-advances** the step. The planned step is `plan_sessions.run_step` (set by the coaching chat); `scripts/push-workouts.mjs` (in the sync-intervals Action) sends runs with a step to intervals.icu → the Suunto watch.
 
 ## Design rules (see PLAN.md, "Design language")
 

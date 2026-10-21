@@ -1,16 +1,28 @@
-# Copies watch activities from intervals.icu into Supabase (scripts/sync-intervals.mjs).
-# Runs every morning for the last 7 days; run it by hand with a start date for a backfill.
-name: Sync intervals.icu activities
+# Both ways with intervals.icu:
+# - watch activities in: scripts/sync-intervals.mjs, the last 7 days (or a backfill from a start date)
+# - planned runs out to the watch: scripts/push-workouts.mjs, the next 10 days
+# Runs every morning and every evening (so plan changes from the coaching chat reach the watch
+# by the next morning); run it by hand ("Run workflow") as "sync now".
+name: Sync intervals.icu
 
 on:
   schedule:
     - cron: '0 5 * * *' # 05:00 UTC, about 07:00 in Spain
+    - cron: '0 19 * * *' # 19:00 UTC, about 20:00 in Spain
   workflow_dispatch:
     inputs:
       oldest:
-        description: 'Backfill from this date (YYYY-MM-DD). Empty = the last 7 days.'
+        description: 'Backfill activities from this date (YYYY-MM-DD). Empty = the last 7 days.'
         required: false
         default: ''
+      dry_run:
+        description: 'Planned runs: only print what would change (activities are skipped)'
+        type: boolean
+        default: false
+      cleanup:
+        description: 'Planned runs: also delete the hand-made Run A/B workouts (one-off)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -23,17 +35,21 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      INTERVALS_API_KEY: ${{ secrets.INTERVALS_API_KEY }}
+      INTERVALS_ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PISADA_USER_ID: ${{ secrets.PISADA_USER_ID }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - name: Sync
+      - name: Activities in
+        if: ${{ !inputs.dry_run }}
         run: node scripts/sync-intervals.mjs
         env:
-          INTERVALS_API_KEY: ${{ secrets.INTERVALS_API_KEY }}
-          INTERVALS_ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          PISADA_USER_ID: ${{ secrets.PISADA_USER_ID }}
           OLDEST: ${{ inputs.oldest }}
+      - name: Planned runs out
+        run: node scripts/push-workouts.mjs ${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.cleanup && '--cleanup' || '' }}

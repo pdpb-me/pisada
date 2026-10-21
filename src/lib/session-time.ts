@@ -24,7 +24,7 @@ export function sessionMinutes(s: DaySession, steps: RunStep[], currentStep: num
     }
   }
   if (s.kind === 'run') {
-    const step = steps.find((st) => st.step === (s.activity?.run_step ?? currentStep))
+    const step = steps.find((st) => st.step === runStepFor(s, currentStep))
     if (step) {
       total += runStepMinutes(step)
       known = true
@@ -39,7 +39,8 @@ export function runStepMinutes(step: RunStep) {
   return Number(step.warmup_min) + Number(step.reps) * (Number(step.run_min) + Number(step.walk_min)) + Number(step.cooldown_min)
 }
 
-// The ladder step a run will use: its own if logged, else the last logged run's
+// The ladder step a run will use: its own if logged, else the planned one
+// (set at the weekly check-in), else the last logged run's
 export function runStepFor(s: DaySession, currentStep: number | null) {
-  return s.activity?.run_step ?? currentStep
+  return s.activity?.run_step ?? s.run_step ?? currentStep
 }
