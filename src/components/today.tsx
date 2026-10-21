@@ -24,8 +24,14 @@ type Screen = { kind: 'day' } | { kind: 'session'; id: string } | { kind: 'exerc
 export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void }) {
   const today = todayISO()
   const [date, setDate] = useState(today)
-  const days = weekOf(date)
+  // the week shown in the strip: swiping or the arrows change it, the chosen day stays
+  const [monday, setMonday] = useState(() => weekOf(today)[0])
+  const days = weekOf(monday)
   const week = useWeek(days)
+  const choose = (d: string) => {
+    setDate(d)
+    setMonday(weekOf(d)[0])
+  }
   const runSteps = useRunSteps()
   // the step a planned run will use (for its rough time): the last logged run's
   const [currentStep, setCurrentStep] = useState<number | null>(null)
@@ -42,7 +48,8 @@ export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void 
       days={days}
       dots={week.dots}
       onWeekChanged={week.reload}
-      onDate={setDate}
+      onDate={choose}
+      onWeek={(dir) => setMonday(addDays(monday, dir * 7))}
       runSteps={runSteps}
       currentStep={currentStep}
       onDeepChange={onDeepChange}
@@ -57,6 +64,7 @@ function Day({
   dots,
   onWeekChanged,
   onDate,
+  onWeek,
   runSteps,
   currentStep,
   onDeepChange,
@@ -67,6 +75,7 @@ function Day({
   dots: Record<string, DayDot[]>
   onWeekChanged: () => void
   onDate: (date: string) => void
+  onWeek: (direction: -1 | 1) => void
   runSteps: RunStep[]
   currentStep: number | null
   onDeepChange: (deep: boolean) => void
@@ -139,7 +148,7 @@ function Day({
             <p className="text-sm text-muted-foreground">{longDate(date)}</p>
           </div>
           <div className="flex items-center">
-            {!isToday && (
+            {(!isToday || !days.includes(today)) && (
               <Button variant="ghost" className="h-11 text-primary" onClick={() => onDate(today)}>
                 Back to today
               </Button>
@@ -161,7 +170,7 @@ function Day({
           selected={date}
           today={today}
           onSelect={onDate}
-          onWeek={(dir) => onDate(addDays(date, dir * 7))}
+          onWeek={onWeek}
         />
       </div>
 
