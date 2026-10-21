@@ -124,7 +124,7 @@ if (CLEANUP) {
   for (const e of handMade) {
     show('delete hand-made', e)
     if (!DRY_RUN) await intervals('DELETE', `/events/${e.id}`)
-    console.log(`Cleanup: deleted hand-made workout "${e.name}"`)
+    console.log(`Cleanup: ${DRY_RUN ? 'would delete' : 'deleted'} hand-made workout "${e.name}"`)
     counts.cleaned++
   }
 }
