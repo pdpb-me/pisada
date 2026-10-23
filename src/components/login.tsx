@@ -24,7 +24,7 @@ function rememberedEmail() {
   }
 }
 
-// Two steps: type your email -> get a 6-digit code by email -> type the code.
+// Two steps: type your email -> get a code by email (CODE_LENGTH digits) -> type the code.
 export function Login() {
   const [email, setEmail] = useState(rememberedEmail)
   const [step, setStep] = useState<'email' | 'code'>('email')
