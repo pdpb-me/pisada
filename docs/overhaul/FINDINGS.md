@@ -94,7 +94,7 @@ toasts, the order of the check-ins).
 ## Still open (for later)
 
 - **Partly with a note** is still 6 taps (row → session → Partly → Add a note → type → Close).
-  A note field in the Undo toast was tried in thought and left out: too much on a small toast.
+  A note box inside the Undo toast would be too much for a small toast, so it stays as is.
 - **Plan below the fold** on a morning with a new coach note and the morning check-in: fine
   after "Got it" and the arch answer; a more compact morning card could come later.
 - **Week strip dots** have no legend (the label for screen readers says it all).
