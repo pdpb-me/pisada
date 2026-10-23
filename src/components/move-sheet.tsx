@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useBackCloses } from '@/hooks/use-back-stack'
 import { Choice } from '@/components/pain-scale'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
@@ -24,6 +25,7 @@ export function MoveSheet({
   onOpenChange: (open: boolean) => void
   onMove: (date: string, slot: string) => Promise<boolean>
 }) {
+  useBackCloses(open, () => onOpenChange(false))
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>

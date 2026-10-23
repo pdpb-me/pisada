@@ -64,11 +64,11 @@ export function Progress({ onDeepChange }: { onDeepChange: (deep: boolean) => vo
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-0">
         <header className="flex flex-col gap-3 border-b bg-card px-4 pt-4 pb-3">
           <h1 className="text-display font-bold">Progress</h1>
-          <TabsList className="h-11 w-full">
-            <TabsTrigger value="overview" className="h-9">
+          <TabsList className="h-12 w-full">
+            <TabsTrigger value="overview" className="h-full">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="activities" className="h-9">
+            <TabsTrigger value="activities" className="h-full">
               Activities
             </TabsTrigger>
           </TabsList>

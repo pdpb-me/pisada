@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useBackCloses } from '@/hooks/use-back-stack'
 import { Choice, PainScale } from '@/components/pain-scale'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
@@ -35,6 +36,7 @@ export function LogSheet({
   onComment: (comment: string) => Promise<boolean>
   onCleared: () => void
 }) {
+  useBackCloses(open, () => onOpenChange(false))
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>{open && <LogForm {...props} onClose={() => onOpenChange(false)} />}</DrawerContent>
@@ -68,10 +70,20 @@ function LogForm({
   const happened = session.log?.status === 'done' || session.log?.status === 'partial'
   const run = session.activity
 
-  async function close() {
-    if (session.log && note.trim() !== saved) await onComment(note)
-    onClose()
-  }
+  // The note saves when the form goes away, however the sheet was closed (Close, swipe,
+  // tap outside, back gesture), unless the log was just cleared
+  const latest = useRef({ note, saved, logged: !!session.log, onComment, cleared: false })
+  useEffect(() => {
+    latest.current = { ...latest.current, note, saved, logged: !!session.log, onComment }
+  })
+  useEffect(
+    () => () => {
+      const l = latest.current
+      if (l.logged && !l.cleared && l.note.trim() !== l.saved) void l.onComment(l.note)
+    },
+    [],
+  )
+  const close = onClose
 
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-md flex-col">
@@ -161,6 +173,7 @@ function LogForm({
             variant="ghost"
             className="-mx-2 h-11 self-start px-2 text-muted-foreground"
             onClick={async () => {
+              latest.current.cleared = true
               onClose()
               if (await onStatus(null)) onCleared()
             }}

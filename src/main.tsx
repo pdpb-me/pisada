@@ -10,7 +10,7 @@ createRoot(document.getElementById('root')!).render(
     {/* low, above the tab bar: near the thumb, never over a title or the back button */}
     <Toaster position="bottom-center" offset={88} mobileOffset={{ bottom: 88 }} duration={2500}
       visibleToasts={1}
-      toastOptions={{ classNames: { actionButton: '!h-9 !px-3 !text-sm', cancelButton: '!h-9 !px-3 !text-sm' } }}
+      toastOptions={{ classNames: { actionButton: '!h-11 !px-4 !text-sm', cancelButton: '!h-11 !px-4 !text-sm' } }}
     />
   </StrictMode>,
 )

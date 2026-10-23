@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useBackCloses } from '@/hooks/use-back-stack'
 import { ChevronRightIcon, MessageSquareTextIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -22,6 +23,7 @@ function Text({ text }: { text: string | null }) {
 }
 
 export function CoachNoteSheet({ review, open, onOpenChange }: { review: Review; open: boolean; onOpenChange: (o: boolean) => void }) {
+  useBackCloses(open, () => onOpenChange(false))
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>

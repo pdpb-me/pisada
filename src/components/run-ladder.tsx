@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { useBackCloses } from '@/hooks/use-back-stack'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import type { RunStep } from '@/data/types'
@@ -52,6 +53,7 @@ export function LadderDrawer({
   current: number | null
   currentLabel?: string
 }) {
+  useBackCloses(open, () => onOpenChange(false))
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>

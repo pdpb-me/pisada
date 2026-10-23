@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { popTakenBySheet } from '@/hooks/use-back-stack'
 
 // A small stack of screens inside one tab (e.g. Today → session → exercise).
 // Each push adds a browser history entry, so the phone's back gesture goes
@@ -10,6 +11,7 @@ export function useScreens<T>(root: T) {
 
   useEffect(() => {
     const onPop = () => {
+      if (popTakenBySheet()) return // the back gesture closed a sheet, not this screen
       setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
       const y = scrolls.current.pop() ?? 0
       requestAnimationFrame(() => window.scrollTo(0, y))

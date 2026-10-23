@@ -87,6 +87,14 @@ function Day({
     onDeepChange(deep)
   }, [deep, onDeepChange])
 
+  // The open session left this day (the coach moved it, or Undo after a move): back to the day
+  const openId = 'id' in nav.screen ? nav.screen.id : null
+  const gone = openId != null && day.sessions != null && !day.sessions.some((x) => x.id === openId)
+  const { back } = nav
+  useEffect(() => {
+    if (gone) back()
+  }, [gone, back])
+
   const handlers = (id: string): SessionHandlers => {
     const s = () => day.sessions!.find((x) => x.id === id)!
     return {
@@ -162,7 +170,7 @@ function Day({
                   {' · '}
                   <button
                     type="button"
-                    className="font-medium text-primary underline-offset-4 hover:underline"
+                    className="-my-3 inline-block py-3 font-medium text-primary underline-offset-4 hover:underline"
                     onClick={() => onDate(today)}
                   >
                     Back to today

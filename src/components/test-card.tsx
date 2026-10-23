@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useBackCloses } from '@/hooks/use-back-stack'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
@@ -30,14 +31,29 @@ export function TestCard({
   }
   const [draft, setDraft] = useState<Record<Side, string>>({ L: saved('L'), R: saved('R') })
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [invalid, setInvalid] = useState<Record<Side, boolean>>({ L: false, R: false })
 
   function commit(side: Side) {
     const text = draft[side].trim()
-    if (text === saved(side)) return
+    if (text === saved(side)) return setInvalid((v) => ({ ...v, [side]: false }))
     const value = text === '' ? null : Number(text)
-    if (value != null && (!Number.isInteger(value) || value < 0 || value > 200)) return
-    onChange(side, value)
+    const ok = value == null || (Number.isInteger(value) && value >= 0 && value <= 200)
+    setInvalid((v) => ({ ...v, [side]: !ok }))
+    if (ok) onChange(side, value)
   }
+
+  // A box still being typed in when the screen closes (back gesture with the keyboard up) saves too
+  const commitRef = useRef(commit)
+  useEffect(() => {
+    commitRef.current = commit
+  })
+  useEffect(
+    () => () => {
+      commitRef.current('L')
+      commitRef.current('R')
+    },
+    [],
+  )
 
   return (
     <Card className="gap-4 px-4 py-4">
@@ -63,6 +79,7 @@ export function TestCard({
               onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
               className="h-12 text-xl font-semibold tabular-nums"
             />
+            {invalid[side] && <span className="text-xs font-medium text-destructive">Not saved: a whole number, 0 to 200</span>}
             <span className="text-xs text-muted-foreground">
               {last?.[side] != null ? `Last time: ${last[side]} (${dayMonth(last.date)})` : 'First time'}
             </span>
@@ -82,6 +99,7 @@ export function TestCard({
 // Every test so far, newest first: left, right, and the right as a share of the left
 export function TestHistory({ days, open, onOpenChange }: { days: TestDay[]; open: boolean; onOpenChange: (o: boolean) => void }) {
   const max = Math.max(1, ...days.flatMap((d) => [d.L ?? 0, d.R ?? 0]))
+  useBackCloses(open, () => onOpenChange(false))
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
