@@ -1,107 +1,120 @@
-import { CheckIcon, ChevronLeftIcon, XIcon } from 'lucide-react'
+import { CheckIcon, OctagonAlertIcon, XIcon } from 'lucide-react'
 import { ExerciseFigure } from '@/components/exercise-figure'
+import { ScreenHeader } from '@/components/screen-header'
 import { Button } from '@/components/ui/button'
+import type { DaySession } from '@/data/types'
 import { exerciseFor } from '@/exercises/catalog'
-import type { DaySession } from '@/hooks/use-day'
-import { cn } from '@/lib/utils'
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <span className="text-sm text-muted-foreground">{children}</span>
+  return <h2 className="text-sm text-muted-foreground">{children}</h2>
 }
 
 // One exercise, full screen: the figure large, then today's plan, tempo, cues, don'ts, setup.
-// "Today's plan" is the session's own instructions (the plan can change); the catalog dose is the fallback.
+// "Today's plan" is the session's own instructions (the plan can change); the catalog dose
+// is the fallback. The last exercise ends with "Finish and log".
 export function ExerciseScreen({
   session,
   index,
   onBack,
   onIndex,
+  onFinish,
 }: {
   session: DaySession
   index: number
   onBack: () => void
   onIndex: (index: number) => void
+  onFinish: () => void
 }) {
   const slugs = session.exercises.filter((slug) => exerciseFor(slug))
   const ex = exerciseFor(slugs[index] ?? '')
   if (!ex) return null
   const plan = session.instructions?.trim() || ex.dose
-  const short = plan.length <= 24
   const last = index >= slugs.length - 1
 
   return (
     <div className="flex flex-col bg-card pb-28">
-      <div className="flex items-center justify-between px-3 pt-3">
-        <Button variant="ghost" size="icon" className="size-11 rounded-full" aria-label="Back to the session" onClick={onBack}>
-          <ChevronLeftIcon className="size-6" />
-        </Button>
-        <span className="text-sm text-muted-foreground">
-          {index + 1} of {slugs.length} · {session.title}
-        </span>
-        <span className="size-11" />
-      </div>
+      <ScreenHeader
+        back={session.title}
+        onBack={onBack}
+        action={
+          <span className="pr-3 text-sm text-muted-foreground tabular-nums">
+            {index + 1} of {slugs.length}
+          </span>
+        }
+      />
 
-      <div className="flex flex-col gap-5 px-5 pt-1">
-        <h1 className="text-[28px] leading-tight font-bold tracking-tight">{ex.name}</h1>
-
-        <ExerciseFigure slug={ex.slug} inset className="rounded-2xl bg-muted p-3" />
-
-        {/* A short dose sits big beside the tempo; a long instruction gets the full width */}
-        <div className="grid grid-cols-2 gap-x-3 gap-y-4">
-          {ex.tempo && (
-            <div className={cn('flex flex-col gap-0.5', !short && 'col-span-2')}>
-              <Label>Tempo</Label>
-              <span className="text-xl font-bold text-primary">{ex.tempo}</span>
-            </div>
-          )}
-          <div className={cn('flex flex-col gap-0.5', (!short || !ex.tempo) && 'col-span-2', short && ex.tempo && '-order-1')}>
-            <Label>Today’s plan</Label>
-            <span className={cn(short ? 'text-3xl font-bold tabular-nums' : 'text-base leading-relaxed')}>{plan}</span>
-          </div>
+      <div className="flex flex-col gap-5 px-4 pt-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-display font-bold">{ex.name}</h1>
+          <p className="text-base text-muted-foreground">
+            {ex.dose}
+            {ex.tempo && ` · ${ex.tempo}`}
+          </p>
         </div>
 
-        <div className="flex flex-col gap-2 border-t pt-4">
+        <ExerciseFigure slug={ex.slug} inset className="rounded-xl bg-muted p-3" />
+
+        <section className="flex flex-col gap-1">
+          <Label>Today’s plan</Label>
+          <p className="text-base leading-relaxed">{plan}</p>
+        </section>
+
+        <section className="flex flex-col gap-2 border-t pt-4">
           <Label>Cues</Label>
           {ex.cues.map((c) => (
             <div key={c} className="flex items-start gap-2.5">
-              <CheckIcon className="mt-0.5 size-5 shrink-0 text-primary" strokeWidth={2.6} />
+              <CheckIcon className="mt-0.5 size-5 shrink-0 text-primary" strokeWidth={2.6} aria-hidden />
               <span className="text-lg font-medium">{c}</span>
             </div>
           ))}
-        </div>
+        </section>
 
-        <div className="flex flex-col gap-2">
+        <section className="flex flex-col gap-2">
           <Label>Don’t</Label>
           {ex.donts.map((d) => (
             <div key={d} className="flex items-start gap-2.5">
-              <XIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" strokeWidth={2.6} />
-              <span className="text-base text-muted-foreground">{d}</span>
+              <XIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" strokeWidth={2.6} aria-hidden />
+              <span className="text-base">{d}</span>
             </div>
           ))}
-        </div>
-
-        <div className="flex flex-col gap-1.5 border-t pt-4">
-          <Label>Setup</Label>
-          <p className="leading-relaxed">{ex.setup}</p>
-        </div>
+        </section>
 
         {ex.stop && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Stop</Label>
-            <p className="leading-relaxed text-muted-foreground">{ex.stop}</p>
-          </div>
+          <section className="flex gap-2.5 rounded-lg bg-muted px-3 py-3">
+            <OctagonAlertIcon className="mt-0.5 size-5 shrink-0 text-pain-high" aria-hidden />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold">Stop if</span>
+              <p className="text-base leading-relaxed">{ex.stop}</p>
+            </div>
+          </section>
         )}
+
+        <section className="flex flex-col gap-1.5 border-t pt-4">
+          <Label>Setup</Label>
+          <p className="leading-relaxed">{ex.setup}</p>
+        </section>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-10 border-t bg-card pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex max-w-md gap-2.5 px-4 py-3">
-          <Button variant="secondary" className="h-12 flex-1 rounded-full text-base font-semibold" onClick={onBack}>
-            Close
-          </Button>
-          {!last && (
-            <Button className="h-12 flex-1 rounded-full text-base font-semibold" onClick={() => onIndex(index + 1)}>
-              Next exercise
-            </Button>
+          {last ? (
+            <>
+              <Button variant="outline" className="h-12 flex-1 rounded-full text-base" onClick={onBack}>
+                Close
+              </Button>
+              <Button className="h-12 flex-1 rounded-full text-base font-semibold" onClick={onFinish}>
+                {session.log ? 'Finish' : 'Finish and log'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className="h-12 flex-1 rounded-full text-base" onClick={onBack}>
+                Close
+              </Button>
+              <Button className="h-12 flex-1 rounded-full text-base font-semibold" onClick={() => onIndex(index + 1)}>
+                Next exercise
+              </Button>
+            </>
           )}
         </div>
       </div>
