@@ -6,9 +6,9 @@ import { RANGES, type RangeId } from '@/lib/ranges'
 export function RangeTabs({ value, onChange }: { value: RangeId; onChange: (id: RangeId) => void }) {
   return (
     <Tabs value={value} onValueChange={(v) => onChange(v as RangeId)}>
-      <TabsList className="h-11 w-full bg-card ring-1 ring-foreground/10">
+      <TabsList className="h-11 w-full">
         {RANGES.map((r) => (
-          <TabsTrigger key={r.id} value={r.id} className="h-9 data-[state=active]:bg-foreground data-[state=active]:text-background">
+          <TabsTrigger key={r.id} value={r.id} className="h-9">
             {r.label}
           </TabsTrigger>
         ))}

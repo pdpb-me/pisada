@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarArrowUpIcon, ChevronRightIcon, PlayIcon, TriangleAlertIcon, WatchIcon } from 'lucide-react'
+import { CalendarArrowUpIcon, ChevronRightIcon, InfoIcon, PlayIcon, TriangleAlertIcon, WatchIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { ExerciseFigure } from '@/components/exercise-figure'
 import { LogSheet } from '@/components/log-sheet'
@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import type { DaySession, RunChanges, RunStep, Status, Video, WatchActivity } from '@/data/types'
 import { exerciseFor } from '@/exercises/catalog'
+import { useCheckIns } from '@/hooks/use-check-ins'
+import { painLabel } from '@/lib/pain'
 import { dayLabel, duration, km, relativeDay } from '@/lib/format'
 import type { PainArea } from '@/lib/pain-areas'
 import { runStepFor, sessionMinutes } from '@/lib/session-time'
@@ -105,16 +107,19 @@ export function SessionScreen({
   handlers,
   onBack,
   onOpenExercise,
+  openLog = false,
 }: {
   session: DaySession
   steps: RunStep[]
   lastStep: number | null
   today: string
   handlers: SessionHandlers
+  openLog?: boolean
   onBack: () => void
   onOpenExercise: (index: number) => void
 }) {
-  const [logOpen, setLogOpen] = useState(false)
+  const [logOpen, setLogOpen] = useState(openLog)
+  const todayArch = useCheckIns(today).checkIns?.arch ?? null
   const [moveOpen, setMoveOpen] = useState(false)
   const [ladderOpen, setLadderOpen] = useState(false)
   const isRun = session.kind === 'run'
@@ -164,6 +169,17 @@ export function SessionScreen({
       </header>
 
       <div className="flex flex-col gap-3 p-4">
+        {area && !session.log && session.date >= today && todayArch != null && todayArch >= 5 && (
+          <p className="flex gap-2 rounded-xl bg-card px-4 py-3 text-sm ring-1 ring-foreground/10">
+            <InfoIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span>
+              Your arch was {painLabel(todayArch)} this morning.{' '}
+              {todayArch >= 7
+                ? 'Stop zone: rest it today, and tell your coach before this session.'
+                : 'Keep it easy, and stop if it goes above Mild. Your coach decides the next step.'}
+            </span>
+          </p>
+        )}
         {session.watch && <WatchCard watch={session.watch} />}
 
         {test && session.log?.status !== 'skipped' && !future && (
@@ -219,7 +235,7 @@ export function SessionScreen({
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="text-base font-semibold">{ex.name}</span>
-                    <span className="text-sm text-muted-foreground">{ex.dose}</span>
+                    {ex.tempo && <span className="text-sm text-muted-foreground">{ex.tempo}</span>}
                   </span>
                   <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 </button>

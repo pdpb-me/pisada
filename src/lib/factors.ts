@@ -56,7 +56,11 @@ export function factorTests(area: AreaId, watch: WatchDay[], runDates: Set<strin
 }
 
 export function badDayRule(area: AreaId) {
-  return area === 'hands' ? { word: 'tingled', test: (s: number) => s > 0 } : { word: 'Mild or worse', test: (s: number) => s >= 2 }
+  // the arch is often Mild, so a bad arch morning is Moderate or worse; the neck is
+  // usually None, so any neck pain counts
+  if (area === 'hands') return { word: 'tingled', test: (s: number) => s > 0 }
+  if (area === 'arch') return { word: 'Moderate or worse', test: (s: number) => s >= 5 }
+  return { word: 'Mild or worse', test: (s: number) => s >= 2 }
 }
 
 export function factorsFor(area: AreaId, days: DayScore[], tests: Test[]): FactorResult {

@@ -1,18 +1,25 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 // A small stack of screens inside one tab (e.g. Today → session → exercise).
 // Each push adds a browser history entry, so the phone's back gesture goes
 // back one screen instead of leaving the app.
+// Going back returns to where the screen was scrolled.
 export function useScreens<T>(root: T) {
   const [stack, setStack] = useState<T[]>([root])
+  const scrolls = useRef<number[]>([])
 
   useEffect(() => {
-    const onPop = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
+    const onPop = () => {
+      setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
+      const y = scrolls.current.pop() ?? 0
+      requestAnimationFrame(() => window.scrollTo(0, y))
+    }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   const push = useCallback((screen: T) => {
+    scrolls.current.push(window.scrollY)
     window.history.pushState({ pisada: true }, '')
     setStack((s) => [...s, screen])
     window.scrollTo(0, 0)

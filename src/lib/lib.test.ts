@@ -4,7 +4,7 @@ import { addDays, appDay, daysBetween, toISODate, weekOf } from '@/lib/dates'
 import { ladderStatus, num } from '@/lib/ladder'
 import { painBand, painLabel, painLevelFor } from '@/lib/pain'
 import { tinglingLabel } from '@/lib/tingling'
-import { areaSummary, compare, dailySeries, headline } from '@/lib/trends'
+import { areaSummary, compare, dailySeries, headline, zoneLine } from '@/lib/trends'
 import { rightOfLeft, testDays } from '@/lib/tests'
 import { changeText, weightChange } from '@/lib/weight'
 
@@ -148,5 +148,14 @@ describe('heel-raise tests', () => {
       { date: '2026-10-26', L: 23, R: 17 },
     ])
     expect(rightOfLeft(days[1])).toBe(74)
+  })
+})
+
+describe('a flare is never hidden', () => {
+  const s = (date: string, score: number) => ({ date, body_area: 'arch', timing: 'next_morning', score })
+  it('puts a hard latest answer first in the headline and the zone line', () => {
+    expect(headline({ arch: 'same', neck: 'none', hands: 'none' }, ['Arch Severe on Fri.'])).toBe('Arch Severe on Fri. Arch about the same.')
+    const a = areaSummary([s('2026-11-13', 2), s('2026-11-14', 2), s('2026-11-15', 2), s('2026-11-16', 8)], 'arch', '2026-11-16')
+    expect(zoneLine(a, painLabel)).toBe('Latest answer Severe: stop zone. Rest it today and tell your coach.')
   })
 })

@@ -22,7 +22,7 @@ import { addDays, daysBetween, mondayOf, weekOf } from '@/lib/dates'
 import { dayMonth, inDays, longDate, plural, weekday } from '@/lib/format'
 import { getPref, setPref } from '@/lib/prefs'
 
-type Screen = { kind: 'day' } | { kind: 'session'; id: string } | { kind: 'exercise'; id: string; index: number }
+type Screen = { kind: 'day' } | { kind: 'session'; id: string; openLog?: boolean } | { kind: 'exercise'; id: string; index: number }
 
 // Opens on today. Three screens: the day (check-ins + plan) → a session → an exercise.
 // The week strip opens other days (e.g. to fill in yesterday).
@@ -119,6 +119,7 @@ function Day({
           lastStep={lastStep}
           today={today}
           handlers={handlers(current.id)}
+          openLog={nav.screen.kind === 'session' && !!nav.screen.openLog}
           onBack={nav.back}
           onOpenExercise={(index) => nav.push({ kind: 'exercise', id: current.id, index })}
         />
@@ -142,6 +143,10 @@ function Day({
     )
   }
 
+  const morning = <MorningCheckIn state={checkIns} ask={ask.morning} isToday={isToday} afternoon={isToday && hour >= 12} />
+  const evening = <EveningCheckIn state={checkIns} ask={ask.evening} isToday={isToday} />
+  const eveningFirst = isToday && ask.evening === 'now' && checkIns.checkIns?.neck == null
+  const morningFirst = !isToday || hour < 12 || checkIns.checkIns?.arch != null
   const subtitle = isToday ? longDate(date) : `${dayMonth(date)} · ${inDays(date, today)}`
 
   return (
@@ -193,7 +198,8 @@ function Day({
       <div className="flex flex-col gap-3 p-4">
         {isToday && <TodayNotes today={today} dots={dots} onDate={onDate} />}
 
-        <MorningCheckIn state={checkIns} ask={ask.morning} isToday={isToday} />
+        {/* the check-in that's due comes first: the morning before noon, the evening from 18:00 */}
+        {eveningFirst ? evening : morningFirst && morning}
 
         {day.error && !day.sessions ? (
           <ErrorCard what="this day" onRetry={day.retry} />
@@ -207,12 +213,19 @@ function Day({
             steps={steps}
             date={date}
             today={today}
-            onOpen={(id) => nav.push({ kind: 'session', id })}
+            onOpen={(id, openLog) => nav.push({ kind: 'session', id, openLog })}
             onStatus={day.setStatus}
           />
         )}
 
-        <EveningCheckIn state={checkIns} ask={ask.evening} isToday={isToday} />
+        {eveningFirst ? morning : !morningFirst ? (
+          <>
+            {morning}
+            {evening}
+          </>
+        ) : (
+          evening
+        )}
         {checkIns.error && !checkIns.checkIns && <ErrorCard what="the check-ins" onRetry={checkIns.retry} />}
       </div>
     </main>

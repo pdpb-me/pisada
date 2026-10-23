@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import type { DaySession, RunStep, Status } from '@/data/types'
 import { plural } from '@/lib/format'
 import { kindWord, sessionMeta, SLOT_WORD } from '@/lib/session-words'
-import { countsAsDone, STATUSES, statusLabel } from '@/lib/session-status'
+import { sessionPain, STATUSES, statusLabel } from '@/lib/session-status'
 import { testFor } from '@/lib/tests'
 import { cn } from '@/lib/utils'
 
@@ -40,7 +40,7 @@ function QuickLog({
         <Button
           key={s.value}
           variant="outline"
-          className={cn('h-11 rounded-lg text-sm', s.value === 'done' && 'border-primary/40 font-semibold text-primary')}
+          className={cn('h-11 rounded-lg text-sm', s.value === 'done' && 'font-semibold')}
           onClick={() => log(s.value)}
         >
           {s.label}
@@ -49,6 +49,12 @@ function QuickLog({
     </div>
   )
 }
+
+// A logged session that still has its pain question open: the row opens that question
+const needsPain = (s: DaySession) => !!s.log && s.log.status !== 'skipped' && (() => {
+  const { area, score } = sessionPain(s)
+  return !!area && score == null
+})()
 
 // The day's plan: one row per session. A row opens the session; an unlogged row on today
 // or a past day can be logged right here.
@@ -64,13 +70,16 @@ export function PlanList({
   steps: RunStep[]
   date: string
   today: string
-  onOpen: (id: string) => void
+  onOpen: (id: string, openLog?: boolean) => void
   onStatus: (session: DaySession, status: Status | null) => Promise<boolean>
 }) {
   const canLog = date <= today
   const past = date < today
   const open = sessions.filter((s) => !s.log)
-  const logged = sessions.filter((s) => countsAsDone(s.log?.status)).length
+  const count = (st: string) => sessions.filter((s) => s.log?.status === st).length
+  const loggedText = [count('done') && `${count('done')} done`, count('partial') && `${count('partial')} partly`, count('skipped') && `${count('skipped')} skipped`]
+    .filter(Boolean)
+    .join(' · ')
 
   async function skipRest() {
     const ids = open.map((s) => s.id)
@@ -86,7 +95,7 @@ export function PlanList({
         <h2 className="text-base font-semibold">Plan</h2>
         <div className="flex items-center gap-1">
           <span className="text-sm text-muted-foreground">
-            {open.length === 0 ? `${logged} of ${sessions.length} done` : past ? `${open.length} not logged` : `${open.length} to do`}
+            {open.length === 0 ? loggedText : past ? `${open.length} not logged` : `${open.length} to do`}
           </span>
           {canLog && open.length >= 2 && (
             <Button variant="ghost" className="h-11 rounded-full px-3 text-sm text-muted-foreground" onClick={skipRest}>
@@ -99,7 +108,7 @@ export function PlanList({
         <div key={s.id} className="flex flex-col gap-2 border-t px-4 py-3">
           <button
             type="button"
-            onClick={() => onOpen(s.id)}
+            onClick={() => onOpen(s.id, needsPain(s))}
             className="-mx-2 flex min-h-14 items-center gap-3 rounded-lg px-2 text-left hover:bg-muted/60"
           >
             <StatusMark status={s.log?.status} past={past} />

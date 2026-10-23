@@ -49,6 +49,9 @@ export function FactorsList({ area, result, limit }: { area: AreaId; result: Fac
   if (!shown.length) return <p className="text-sm text-muted-foreground">Not enough days with and without each thing yet.</p>
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-xs text-muted-foreground">
+        From {result.answered} answers. Small numbers: a hint to talk about with your coach, not a rule. Watch data counts once it has synced.
+      </p>
       {shown.map((f) => (
         <div key={f.id} className="flex flex-col gap-1.5">
           <span className="flex items-baseline justify-between gap-2">

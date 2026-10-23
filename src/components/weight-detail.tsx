@@ -37,8 +37,8 @@ export function WeightDetail({ data, onBack }: { data: ProgressData; onBack: () 
 
   return (
     <DetailScreen title="Weight" sub="Mornings, after the toilet, before drinking or eating" onBack={onBack}>
-      <RangeTabs value={rangeId} onChange={setRangeId} />
       <Card className="gap-3 px-4 py-4">
+        <RangeTabs value={rangeId} onChange={setRangeId} />
         <div className="flex items-end justify-between gap-3">
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">Average, {range.text}</span>

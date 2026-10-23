@@ -51,9 +51,19 @@ function Answered({
   )
 }
 
+// A calm word after a hard answer: what it means for today, never alarming
+function Note({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex gap-2 rounded-xl bg-card px-4 py-3 text-sm ring-1 ring-foreground/10">
+      <InfoIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span>{children}</span>
+    </p>
+  )
+}
+
 function Asking({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <Card className="animate-fade-in gap-4 px-4 py-4">
+    <Card className="animate-fade-in gap-3 px-4 py-4">
       <div className="flex flex-col gap-0.5">
         <h2 className="text-base font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">{sub}</p>
@@ -65,22 +75,23 @@ function Asking({ title, sub, children }: { title: string; sub: string; children
 
 // Morning: right arch at the first steps out of bed (the arch measure), whether
 // yesterday's run was clean (that needs the morning after), and the weight if he likes.
-export function MorningCheckIn({ state, ask, isToday }: { state: CheckInsState; ask: Ask; isToday: boolean }) {
+export function MorningCheckIn({ state, ask, isToday, afternoon = false }: { state: CheckInsState; ask: Ask; isToday: boolean; afternoon?: boolean }) {
   const [open, setOpen] = useState(false) // opened by hand (Edit, or to add the weight)
   const [weightOpen, setWeightOpen] = useState(false)
   const c = state.checkIns
   if (ask === 'none') return null
-  if (!c) return <Skeleton className="h-20 rounded-xl bg-card" />
+  if (!c) return <Skeleton className="h-36 rounded-xl bg-card" />
 
   const cleanPending = c.run != null && c.run.clean == null
   const complete = c.arch != null && !cleanPending
   const sore = isToday && c.arch != null && c.arch >= 5
 
   const note = sore && (
-    <p className="flex gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm">
-      <InfoIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-      <span>Arch is sore today. Keep it easy, and stop an exercise if it goes above Mild. Your coach decides the next run step.</span>
-    </p>
+    <Note>
+      {c.arch! >= 7
+        ? `Arch ${painLabel(c.arch!)} today: that's the stop zone. Rest it today (no run, no tendon work), and tell your coach.`
+        : 'Arch is sore today. Keep it easy, and stop an exercise if it goes above Mild. Your coach decides the next run step.'}
+    </Note>
   )
 
   if (complete && !open)
@@ -96,7 +107,10 @@ export function MorningCheckIn({ state, ask, isToday }: { state: CheckInsState; 
     )
 
   return (
-    <Asking title={isToday ? 'How’s the arch this morning?' : 'How was the arch that morning?'} sub="Right arch, first steps out of bed">
+    <Asking
+      title={isToday ? (afternoon ? 'How was the arch this morning?' : 'How’s the arch this morning?') : 'How was the arch that morning?'}
+      sub="Right arch, first steps out of bed"
+    >
       <PainScale label="Right arch, first steps" hideLabel value={c.arch} onChange={(s) => state.save('arch', s)} />
       {c.run && (
         <div className="flex flex-col gap-1.5">
@@ -110,7 +124,7 @@ export function MorningCheckIn({ state, ask, isToday }: { state: CheckInsState; 
             onChange={(v) => state.saveClean(v === 'clean')}
           />
           <span className="text-xs text-muted-foreground">
-            Clean: the arch stayed None or Mild during the run, and is back to normal this morning.
+            Clean: None or Mild during the run, and back to normal now.
           </span>
         </div>
       )}
@@ -143,7 +157,7 @@ export function EveningCheckIn({ state, ask, isToday }: { state: CheckInsState; 
   const [open, setOpen] = useState(false)
   const c = state.checkIns
   if (ask === 'none') return null
-  if (!c) return <Skeleton className="h-20 rounded-xl bg-card" />
+  if (!c) return <Skeleton className="h-36 rounded-xl bg-card" />
   const complete = c.neck != null && c.hands != null
 
   if (ask === 'later' && !open && c.neck == null && c.hands == null)
@@ -157,12 +171,24 @@ export function EveningCheckIn({ state, ask, isToday }: { state: CheckInsState; 
       </Card>
     )
 
+  const hard = isToday && ((c.neck ?? 0) >= 5 || (c.hands ?? 0) >= 5)
+  const note = hard && (
+    <Note>
+      {(c.neck ?? 0) >= 7
+        ? `Neck ${painLabel(c.neck!)} today: rest it this evening, and tell your coach now rather than at the weekly check-in.`
+        : 'A hard day for the neck and hands. It’s in your log, so your coach sees it at the weekly check-in. If it stays like this, tell your coach sooner.'}
+    </Note>
+  )
+
   if (complete && !open)
     return (
-      <Answered icon={MoonIcon} title={isToday ? 'This evening' : 'That evening'} onEdit={() => setOpen(true)}>
-        <Answer label="Neck" word={painLabel(c.neck!)} score={c.neck!} />
-        <Answer label="Hands" word={tinglingLabel(c.hands!)} score={c.hands!} />
-      </Answered>
+      <div className="flex flex-col gap-2">
+        <Answered icon={MoonIcon} title={isToday ? 'This evening' : 'That evening'} onEdit={() => setOpen(true)}>
+          <Answer label="Neck" word={painLabel(c.neck!)} score={c.neck!} />
+          <Answer label="Hands" word={tinglingLabel(c.hands!)} score={c.hands!} />
+        </Answered>
+        {note}
+      </div>
     )
 
   return (
@@ -175,6 +201,7 @@ export function EveningCheckIn({ state, ask, isToday }: { state: CheckInsState; 
         levels={TINGLING_LEVELS}
         levelFor={tinglingLevelFor}
       />
+      {note}
       {(complete || open) && (
         <Button variant="outline" className="h-11 rounded-full" onClick={() => setOpen(false)}>
           Done

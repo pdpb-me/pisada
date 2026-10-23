@@ -64,9 +64,23 @@ export const VERDICT_TEXT = {
   none: 'Not enough answers to compare',
 }
 
-// The zones of the plan: ≤ 3 OK, 4–6 hold or back off, 7+ stop
+// The zones of the plan: ≤ 3 OK, 4–6 hold or back off, 7+ stop, each with what to do
 export function zoneText(score: number) {
   return score <= 3 ? 'In the OK zone' : score <= 6 ? 'Hold or back off' : 'Stop zone'
+}
+
+export function zoneAction(score: number) {
+  return score <= 3 ? 'Train as planned.' : score <= 6 ? 'Keep the load, don’t add more.' : 'Rest it today and tell your coach.'
+}
+
+// One line on what the last 7 days mean: about the latest answer when it's worse than
+// the week's average (a flare shouldn't hide behind the average), else about the week
+export function zoneLine(s: AreaSummary, word: (score: number) => string) {
+  if (s.typical == null) return null
+  const latestWorse = s.latest != null && s.latest.score > s.typical && word(s.latest.score) !== word(s.typical)
+  const score = latestWorse ? s.latest!.score : s.typical
+  const lead = latestWorse ? `Latest answer ${word(score)}` : 'This week'
+  return `${lead}: ${zoneText(score).replace('In the OK zone', 'OK zone').toLowerCase()}. ${zoneAction(score)}`
 }
 
 export type AreaSummary = {
@@ -99,7 +113,8 @@ export function areaSummary(symptoms: Symptom[], area: AreaId, today: string): A
 }
 
 // One sentence for the top of Progress: "Neck worse than the week before. Arch and hands about the same."
-export function headline(verdicts: Record<AreaId, AreaSummary['verdict']>) {
+// A hard latest answer comes first: "Arch Severe on Fri." (a flare shouldn't hide behind the week)
+export function headline(verdicts: Record<AreaId, AreaSummary['verdict']>, flares: string[] = []) {
   const names = { arch: 'Arch', neck: 'Neck', hands: 'Hands' }
   const group = (v: AreaSummary['verdict']) => (Object.keys(verdicts) as AreaId[]).filter((a) => verdicts[a] === v)
   const list = (ids: AreaId[]) => {
@@ -113,6 +128,6 @@ export function headline(verdicts: Record<AreaId, AreaSummary['verdict']>) {
   if (worse.length) parts.push(`${list(worse)} worse than the week before.`)
   if (better.length) parts.push(`${list(better)} better.`)
   if (same.length) parts.push(`${list(same)} about the same.`)
-  if (!parts.length) return 'Not enough check-ins yet to compare weeks.'
-  return parts.join(' ')
+  if (!parts.length) return [...flares, 'Not enough check-ins yet to compare weeks.'].join(' ')
+  return [...flares, ...parts].join(' ')
 }

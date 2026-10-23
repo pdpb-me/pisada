@@ -10,7 +10,7 @@ import { dayMonth, weekdayShort } from '@/lib/format'
 import { painBand, PAIN_LEVELS } from '@/lib/pain'
 import { PAIN_DOT } from '@/lib/session-status'
 import { TINGLING_LEVELS } from '@/lib/tingling'
-import { AREAS, areaSummary, average, compare, dailySeries, zoneText, type AreaId } from '@/lib/trends'
+import { AREAS, areaSummary, average, compare, dailySeries, zoneLine, type AreaId } from '@/lib/trends'
 import { cn } from '@/lib/utils'
 
 // Chart geometry (SVG units): plot from x 14 to 272, words on the right
@@ -87,23 +87,27 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
         {week.typical != null ? (
           <>
             <span className="flex items-center gap-2">
-              <span className={cn('size-3.5 rounded-full', PAIN_DOT[painBand(week.worst!)])} aria-hidden />
+              <span className={cn('size-3.5 rounded-full', PAIN_DOT[painBand(tingling ? week.worst! : week.typical)])} aria-hidden />
               <span className="text-hero font-semibold">{tingling ? `${week.badDays} of ${week.answered} days` : word(week.typical)}</span>
             </span>
-            <span className="text-sm text-muted-foreground">
-              {tingling ? 'with tingling' : 'usual'}
-              {week.latest && ` · latest ${word(week.latest.score)} (${weekdayShort(week.latest.date)})`}
-            </span>
-            {!tingling && <span className="text-base font-semibold">{zoneText(week.worst!)}</span>}
+            <span className="text-sm text-muted-foreground">{tingling ? 'with tingling' : 'average of the last 7 days'}</span>
+            {week.latest && (
+              <span className="flex items-center gap-1.5 text-sm">
+                <span className="text-muted-foreground">Latest ({weekdayShort(week.latest.date)})</span>
+                <span className={cn('size-2 rounded-full', PAIN_DOT[painBand(week.latest.score)])} aria-hidden />
+                <span className="font-semibold">{word(week.latest.score)}</span>
+              </span>
+            )}
+            {!tingling && <p className="rounded-lg bg-muted px-3 py-2 text-sm">{zoneLine(week, word)}</p>}
           </>
         ) : (
           <span className="text-base font-semibold">Not enough answers yet ({week.answered} of 7 days)</span>
         )}
       </Card>
 
-      <RangeTabs value={rangeId} onChange={setRangeId} />
 
       <Card className="gap-3 px-4 py-4">
+        <RangeTabs value={rangeId} onChange={setRangeId} />
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">Average, {start > 0 ? `since ${dayMonth(shown[0].date)}` : range.text}</span>
@@ -119,7 +123,7 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
           </span>
         </div>
 
-        <svg viewBox="0 0 350 235" className="w-full" role="img" aria-label={`${a.title} per day, ${range.text}`}>
+        <svg viewBox={tingling ? '0 80 350 155' : '0 0 350 235'} className="w-full" role="img" aria-label={`${a.title} per day, ${range.text}`}>
           {!tingling && <rect x="0" y="10" width="4" height="80" className="fill-pain-high" />}
           <rect x="0" y="90" width="4" height="60" className="fill-pain-mid" />
           <rect x="0" y="150" width="4" height="60" className="fill-pain-low" />
@@ -190,7 +194,7 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
       <Card className="gap-3 px-4 py-4">
         <h2 className="text-xl font-semibold">What goes with a bad day</h2>
         <p className="text-sm text-muted-foreground">
-          {tingling ? 'Days the hands tingled' : `Days the ${area === 'arch' ? 'arch was' : 'neck was'} Mild or worse`},{' '}
+          {tingling ? 'Days the hands tingled' : `Days the ${area === 'arch' ? 'arch was' : 'neck was'} ${factors.bad}`},{' '}
           {start > 0 ? `since ${dayMonth(shown[0].date)}` : range.text}.
         </p>
         <FactorsList area={area} result={factors} />

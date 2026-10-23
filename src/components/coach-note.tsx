@@ -80,19 +80,19 @@ export function CoachNote({ review }: { review: Review }) {
     )
 
   return (
-    <Card className="animate-fade-in gap-3 px-4 py-4">
+    <Card className="animate-fade-in gap-2 px-4 pt-3 pb-2">
       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <MessageSquareTextIcon className="size-4" aria-hidden />
         From your coach · week of {dayMonth(review.week_start)}
       </div>
-      <p className="line-clamp-4 text-base leading-relaxed">{lead}</p>
-      <div className="flex gap-2">
-        <Button variant="outline" className="h-11 flex-1 rounded-full" onClick={() => setOpen(true)}>
+      <p className="line-clamp-3 text-sm leading-relaxed">{lead}</p>
+      <div className="-mb-1 flex justify-end gap-1">
+        <Button variant="ghost" className="h-11 rounded-full px-4 text-primary" onClick={() => setOpen(true)}>
           Read all
         </Button>
         <Button
-          variant="ghost"
-          className="h-11 flex-1 rounded-full"
+          variant="outline"
+          className="h-11 rounded-full px-5"
           onClick={() => {
             setPref(key, '1')
             setRead(true)

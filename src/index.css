@@ -99,7 +99,7 @@
     --chart-5: oklch(0.269 0 0);
     --radius: 0.875rem;
     /* Pain: 0-3 ok, 4-6 hold or back off, 7-10 stop. Always shown with the number. */
-    --pain-low: oklch(0.55 0.15 150);
+    --pain-low: oklch(0.52 0.14 150);
     --pain-low-foreground: oklch(0.985 0 0);
     --pain-mid: oklch(0.769 0.165 70.1);
     --pain-mid-foreground: oklch(0.205 0 0);

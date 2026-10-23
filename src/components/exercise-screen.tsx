@@ -46,10 +46,7 @@ export function ExerciseScreen({
       <div className="flex flex-col gap-5 px-4 pt-2">
         <div className="flex flex-col gap-1">
           <h1 className="text-display font-bold">{ex.name}</h1>
-          <p className="text-base text-muted-foreground">
-            {ex.dose}
-            {ex.tempo && ` · ${ex.tempo}`}
-          </p>
+          {ex.tempo && <p className="text-base text-muted-foreground">Tempo {ex.tempo}</p>}
         </div>
 
         <ExerciseFigure slug={ex.slug} inset className="rounded-xl bg-muted p-3" />

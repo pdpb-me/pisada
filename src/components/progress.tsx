@@ -118,7 +118,15 @@ function Overview({ data, onOpen }: { data: ProgressData; onOpen: (s: Screen) =>
         <span className="text-sm text-muted-foreground">Last 7 days</span>
         <p className="text-xl font-semibold text-balance">
           {anything
-            ? headline({ arch: summaries.arch.verdict, neck: summaries.neck.verdict, hands: summaries.hands.verdict })
+            ? headline(
+                { arch: summaries.arch.verdict, neck: summaries.neck.verdict, hands: summaries.hands.verdict },
+                (['arch', 'neck'] as const).flatMap((a) => {
+                  const l = summaries[a].latest
+                  return l && l.score >= 5 && daysBetween(l.date, data.today) <= 2
+                    ? [`${AREAS[a].title} ${AREAS[a].label(l.score)} on ${weekdayShort(l.date)}.`]
+                    : []
+                }),
+              )
             : 'Trends show here after a week of check-ins.'}
         </p>
       </Card>
@@ -217,10 +225,14 @@ function WeekCard({ today }: { today: string }) {
       <CardTitle title="This week" sub={`${dayMonth(days[0])} – ${dayMonth(days[6])}`} chevron={false} />
       <div className="flex items-end justify-between gap-3">
         <div className="flex flex-col">
-          <span className="flex items-baseline gap-1.5">
-            <span className="text-display font-semibold tabular-nums">{done}</span>
-            <span className="text-base text-muted-foreground">of {all.length} done</span>
-          </span>
+          {done === 0 && skipped > 0 ? (
+            <span className="text-display font-semibold">A rest week</span>
+          ) : (
+            <span className="flex items-baseline gap-1.5">
+              <span className="text-display font-semibold tabular-nums">{done}</span>
+              <span className="text-base text-muted-foreground">of {all.length} done</span>
+            </span>
+          )}
           <span className="text-sm text-muted-foreground">
             {[partial > 0 && `${partial} partly`, skipped > 0 && `${skipped} skipped`].filter(Boolean).join(' · ') || ' '}
           </span>
@@ -256,17 +268,20 @@ function AreaCard({ area, s, onOpen }: { area: AreaId; s: ReturnType<typeof area
       {s.typical != null ? (
         <span className="flex flex-col gap-0.5">
           <span className="flex items-center gap-2">
-            <span className={cn('size-3 rounded-full', PAIN_DOT[painBand(s.worst!)])} aria-hidden />
+            <span className={cn('size-3 rounded-full', PAIN_DOT[painBand(tingling ? s.worst! : s.typical)])} aria-hidden />
             <span className="text-display font-semibold">
               {tingling ? (s.badDays ? `${s.badDays} of ${s.answered} days` : 'None') : a.label(s.typical)}
             </span>
           </span>
-          <span className="text-sm text-muted-foreground">
-            {tingling ? 'Tingled, last 7 days' : 'Usual, last 7 days'}
-            {!tingling &&
-              s.latest &&
-              a.label(s.latest.score) !== a.label(s.typical) &&
-              ` · latest ${a.label(s.latest.score)} (${weekdayShort(s.latest.date)})`}
+          <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
+            {tingling ? 'Tingled, last 7 days' : 'Average, last 7 days'}
+            {!tingling && s.latest && a.label(s.latest.score) !== a.label(s.typical) && (
+              <>
+                <span aria-hidden>·</span> latest
+                <span className={cn('size-2 rounded-full', PAIN_DOT[painBand(s.latest.score)])} aria-hidden />
+                <span className="font-semibold text-foreground">{a.label(s.latest.score)}</span>({weekdayShort(s.latest.date)})
+              </>
+            )}
           </span>
           <span className="text-sm font-medium">{VERDICT_TEXT[s.verdict]}</span>
         </span>
@@ -405,8 +420,7 @@ function LadderCard({ data }: { data: ProgressData }) {
               key={i}
               className={cn(
                 'h-2 flex-1 rounded-full',
-                i < (s.last?.run_step ?? 0) ? 'bg-foreground/80' : 'bg-muted',
-                nextStep != null && i === nextStep - 1 && i >= (s.last?.run_step ?? 0) && 'ring-2 ring-foreground/60 ring-inset',
+                i < (nextStep ?? s.last?.run_step ?? 0) ? 'bg-foreground/80' : 'bg-muted',
               )}
             />
           ))}
@@ -431,7 +445,7 @@ function WeightCard({ data, onOpen }: { data: ProgressData; onOpen: () => void }
   const recent = data.weights.filter((w) => w.date > addDays(data.today, -28))
   const lo = Math.min(...recent.map((w) => w.kg))
   const hi = Math.max(...recent.map((w) => w.kg))
-  const span = Math.max(hi - lo, 0.5)
+  const span = Math.max(hi - lo, 2) // small changes stay small: water and food move it ±0.5 kg
   const dayX = (d: string) => (daysBetween(addDays(data.today, -27), d) / 27) * 100
   return (
     <CardButton onClick={onOpen} label="Weight: open the details">
