@@ -66,3 +66,44 @@ D (design), Ar (architecture). The **Decision** column says what this overhaul d
 - **Atomic `set_session_status` database function.** Would need a migration; one-at-a-time writes
   from natural keys fix the races without it.
 - **Dark mode, video library, streaks or badges.** Out of scope by the brief.
+
+## After the build: verified
+
+The three "Pedro" users and the design critic ran again on the new build (reports:
+[`reviews/after-*.md`](reviews/)). What they found new was fixed in the last commits
+(mixed dot colours, a flare hidden behind an average, the week arrows, Undo after a move,
+toasts, the order of the check-ins).
+
+| Job | Taps before | Taps after |
+|---|---|---|
+| Neck micro-dose, done | 5 | 1 |
+| Neck micro-dose, partly | 6 | 1 |
+| Run, done | 7 | 1 |
+| Heel-raise test with left/right reps | 8 | 4 |
+| Evening check-in | 4 | 2 |
+| Catch up a missed day (late scenario) | ~12 | 5 |
+| Catch up a weekend after a trip | ~34 | ~10 |
+| Move a run to Saturday | ~6 | 4 |
+
+- Pedro A: 9 of 12 findings fixed, 3 partly, none open.
+- Pedro B: 6 of 12 fixed and 5 partly at the re-run; the main partly ones (headline vs flare,
+  no reply to a hard neck day, the bad-day rule) were fixed afterwards.
+- Pedro C: 7 of 11 fixed, 3 partly; the one not fixed (week arrows) was fixed afterwards.
+- Design: 17 of 27 fixed, 10 partly, none open; contrast now passes AA everywhere checked.
+
+## Still open (for later)
+
+- **Partly with a note** is still 6 taps (row → session → Partly → Add a note → type → Close).
+  A note field in the Undo toast was tried in thought and left out: too much on a small toast.
+- **Plan below the fold** on a morning with a new coach note and the morning check-in: fine
+  after "Got it" and the arch answer; a more compact morning card could come later.
+- **Week strip dots** have no legend (the label for screen readers says it all).
+- **Two exercise doses**: the session's instructions (the coach's plan) and the catalog dose
+  can differ; the exercise screen shows "Today's plan" (the coach's) and the tempo only.
+- **Bundle size**: the main chunk is ~575 kB (the exercise figures and Radix); detail screens
+  and Activities are split out. Fine on Pages; could be split further.
+- **`ui/tabs.tsx`** was written from the shadcn source because the registry wasn't reachable
+  from the cloud session; re-sync locally with `npx shadcn@latest add tabs --overwrite`.
+- **Demo inside the app's scope**: `/pisada/demo/` is inside the installed app's scope, so
+  Android may open a demo link in the Pisada window. Harmless (it says "Demo"); fixing it
+  would need a separate repo.

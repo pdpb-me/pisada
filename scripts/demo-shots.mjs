@@ -20,8 +20,13 @@ const base = process.argv[3] ?? 'http://localhost:4173/pisada/demo/'
 const only = process.env.ONLY?.split(',')
 mkdirSync(out, { recursive: true })
 
-const text = (t) => (p) => p.getByText(t, { exact: false }).first().click()
-const role = (r, name) => (p) => p.getByRole(r, { name }).first().click()
+// taps an element, scrolled to the middle first (so the tab bar never covers it)
+const tap = async (el) => {
+  await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
+  await el.click()
+}
+const text = (t) => (p) => tap(p.getByText(t, { exact: false }).first())
+const role = (r, name) => (p) => tap(p.getByRole(r, { name }).first())
 const swipeUp = async (p) => p.mouse.wheel(0, 2000)
 const wait = (ms) => (p) => p.waitForTimeout(ms)
 // close any sheet that opened by itself (morning and evening check-ins can both open)
@@ -38,7 +43,7 @@ export const SHOTS = [
   ['02-today', 'today', [wait(400), closeSheets, wait(500)]],
   ['03-today-scrolled', 'today', [wait(400), closeSheets, wait(400), swipeUp, wait(300)]],
   ['04-session-neck', 'today', [wait(400), closeSheets, wait(300), text('Neck micro-dose'), wait(400)]],
-  ['05-log-drawer', 'ordinary', [wait(400), closeSheets, wait(300), text('Run A'), wait(300), role('button', /Log session|Edit/), wait(500)]],
+  ['05-log-drawer', 'ordinary', [wait(400), closeSheets, text('Run A'), wait(700)]], // logged without pain: the row opens the question
   ['06-exercise', 'today', [wait(400), closeSheets, wait(300), text('Neck micro-dose'), wait(300), text('Chin nod'), wait(400)]],
   ['07-test-day', 'test-day', [wait(400), closeSheets, wait(300), text('Heel-raise test'), wait(400)]],
   ['08-evening', 'bike', [wait(800)]],
@@ -54,11 +59,11 @@ export const SHOTS = [
   ['18-day-one', 'day-one', [wait(400), closeSheets, wait(500)]],
   ['19-day-one-progress', 'day-one', [wait(400), closeSheets, wait(300), role('button', 'Progress'), wait(500)]],
   ['20-gap', 'gap', [wait(400), closeSheets, wait(500)]],
-  ['21-run-session', 'ordinary', [wait(400), closeSheets, wait(300), text('Run A'), wait(500)]],
+  ['21-run-session', 'ordinary', [wait(400), closeSheets, text('Run A'), wait(500), closeSheets, wait(300)]],
   ['22-moved', 'moved', [wait(400), closeSheets, wait(500)]],
   ['23-new-block', 'new-block', [wait(400), closeSheets, wait(500)]],
   ['25-quick-log', 'today', [wait(400), closeSheets, (p) => p.getByRole('group', { name: /Log Neck/ }).getByText('Partly').click(), wait(600)]],
-  ['26-run-logged-sheet', 'ordinary', [wait(400), closeSheets, text('Run A'), wait(400), role('button', /Edit the log/), wait(600)]],
+  ['26-run-logged-sheet', 'ordinary', [wait(400), closeSheets, text('Run A'), wait(500), closeSheets, role('button', /Edit the log/), wait(600)]],
   ['27-move-sheet', 'moved', [wait(400), closeSheets, text('Run A'), wait(400), role('button', 'Move'), wait(600)]],
   ['28-test-session', 'test-day', [wait(400), closeSheets, text('Heel-raise test'), wait(600)]],
   ['29-test-results', 'test', [wait(400), closeSheets, text('Heel-raise test'), wait(600)]],
