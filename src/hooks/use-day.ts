@@ -1,45 +1,44 @@
-import { useEffect, useState } from 'react'
-import { data, write } from '@/data/store'
-import type { DaySession, PainTarget, RunChanges, SessionLog, Status } from '@/data/types'
+import { data, READS, write } from '@/data/store'
+import type { DaySession, PainTarget, RunChanges, SessionLog, Status, Symptom } from '@/data/types'
 import { useQuery } from '@/data/use-query'
+import { usePending } from '@/hooks/use-pending'
+import { painAreaFor } from '@/lib/pain-areas'
 import type { Side, TestSpec } from '@/lib/tests'
 
-export type { Activity, DaySession, SessionLog, Status, Symptom, TestResult, Video } from '@/data/types'
-
-// One day's planned sessions, with their log, run log (and its watch copy), tests and videos.
+// One day's planned sessions, with their log, run log (and its watch copy), tests and
+// videos. A status or pain tap shows at once.
 export function useDay(date: string) {
-  const query = useQuery(`day:${date}`, () => data.day(date))
-  // A status shows the moment it's tapped, before it's saved (put back if saving fails)
-  // (saved: the write is done; the entry goes once the reloaded day is in)
-  const [pending, setPending] = useState<Record<string, { status: Status | null; saved: boolean }>>({})
-  useEffect(() => {
-    // oxlint-disable-next-line react/set-state-in-effect -- dropping taps the reloaded data now shows
-    setPending((p) => Object.fromEntries(Object.entries(p).filter(([, v]) => !v.saved)))
-  }, [query.data])
+  const query = useQuery(`day:${date}`, READS.day, () => data.day(date))
+  const status = usePending<Status | null>(query.data)
+  const pain = usePending<number | null>(query.data)
 
   const sessions = query.data?.map((s): DaySession => {
-    const tap = pending[s.id]
-    if (!tap) return s
-    return { ...s, log: tap.status ? ({ symptoms: [], ...(s.log ?? { comment: null }), status: tap.status } as SessionLog) : null }
+    let log = s.log
+    const st = status.get(s.id)
+    if (st) {
+      log = st.value ? ({ symptoms: [], comment: null, ...s.log, status: st.value } as SessionLog) : null
+      if (log && st.value === 'skipped') log = { ...log, symptoms: log.symptoms.filter((x) => x.timing !== 'during') }
+    }
+    const area = painAreaFor(s.kind)
+    const p = area && pain.get(`${s.id}|${area.body_area}`)
+    if (log && area && p) {
+      const others = log.symptoms.filter((x) => !(x.body_area === area.body_area && x.timing === 'during'))
+      const tapped = { body_area: area.body_area, side: area.side, timing: 'during', score: p.value } as Symptom
+      log = { ...log, symptoms: p.value == null ? others : [...others, tapped] }
+    }
+    return log === s.log ? s : { ...s, log }
   })
-
-  async function setStatus(session: DaySession, status: Status | null) {
-    setPending((p) => ({ ...p, [session.id]: { status, saved: false } }))
-    await write.setStatus(session, status)
-    setPending((p) => (p[session.id] ? { ...p, [session.id]: { ...p[session.id], saved: true } } : p))
-  }
 
   return {
     sessions,
     error: query.error,
-    setStatus,
-    setPain: (s: DaySession, area: PainTarget, score: number | null) => write.setPain(s, area, score),
-    setRun: (s: DaySession, changes: RunChanges) => (s.activity ? write.setRun(s.activity.id, changes) : Promise.resolve(false)),
-    setComment: async (s: DaySession, comment: string) => {
-      const ok = await write.setComment(s.id, comment.trim() || null)
-      return ok
-    },
-    setTest: (s: DaySession, spec: TestSpec, side: Side, value: number | null) => write.setTest(s, spec, side, value),
-    moveSession: (s: DaySession, date: string, slot: string) => write.moveSession(s, date, slot),
+    retry: query.retry,
+    setStatus: (s: DaySession, value: Status | null) => status.tap(s.id, value, () => write.setStatus(s.id, value)),
+    setPain: (s: DaySession, area: PainTarget, score: number | null) =>
+      pain.tap(`${s.id}|${area.body_area}`, score, () => write.setPain(s.id, area, score)),
+    setRun: (s: DaySession, changes: RunChanges) => write.setRun(s.id, changes),
+    setComment: (s: DaySession, comment: string) => write.setComment(s.id, comment.trim() || null),
+    setTest: (s: DaySession, spec: TestSpec, side: Side, value: number | null) => write.setTest(s.id, spec, side, value),
+    moveSession: (s: DaySession, date: string, slot: string) => write.moveSession(s.id, date, slot),
   }
 }

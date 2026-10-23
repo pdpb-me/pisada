@@ -26,16 +26,22 @@ export type DaySession = Tables<'plan_sessions'> & {
 
 export type DayDot = { id: string; slot: string; kind: string; status: string | null }
 
-export type Answer = { id: string; score: number }
-
-export type Morning = {
-  arch: Answer | null // right arch, first steps
-  run: { id: string; clean: boolean | null } | null // yesterday's logged run, if any
-  weight: number | null // kg, optional
-}
+// Was anything logged lately? (for the "welcome back" line)
+export type LastLog = { date: string } | null
 
 export type EveningArea = 'neck' | 'hands'
-export type Evening = Partial<Record<EveningArea, Answer>>
+
+// The day's two check-ins: morning (right arch at first steps, optional weight, and
+// whether yesterday's run was clean) and evening (neck and hand tingling over the day)
+export type CheckIns = {
+  arch: number | null
+  neck: number | null
+  hands: number | null
+  weight: number | null // kg
+  run: { planSessionId: string | null; id: string; step: number | null; clean: boolean | null } | null // yesterday's logged run
+}
+
+export type NextRun = { date: string; run_step: number | null; title: string }
 
 export type TrendSymptom = { date: string; body_area: string; timing: string; score: number }
 
@@ -46,7 +52,11 @@ export type ProgressData = {
   watch: WatchActivity[] // synced from intervals.icu, 6 months, newest first
   tests: Pick<Tables<'tests'>, 'date' | 'test' | 'side' | 'value' | 'unit'>[]
   weights: { date: string; kg: number }[] // a year, oldest first
+  nextRun: NextRun | null // the next planned run from today on
+  syncedAt: string | null // when the watch data was last copied
 }
+
+export type TestRow = { date: string; side: string | null; value: number; plan_session_id: string | null }
 
 export type RunChanges = { run_step?: number; clean?: boolean | null }
 export type PainTarget = { body_area: string; side: string | null }

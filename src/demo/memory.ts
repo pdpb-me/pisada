@@ -1,16 +1,18 @@
 // The demo backend: the same reads and writes as src/data/supabase.ts, on an in-memory
-// database (src/demo/db.ts). Same rules too: one log per session, one check-in answer
-// per day, a skipped session loses its pain and test results, a run that happened gets
-// a run log. No network.
+// database (src/demo/db.ts). It follows the same rules (src/data/rules.ts) and checks
+// the same limits as the database (supabase/migrations). No network.
 import type { Backend } from '@/data/api'
-import type { DayDot, DaySession, Evening, EveningArea, WatchActivity } from '@/data/types'
+import { check, checkInRow, checkInTiming, clearsOnStatus, isRun, kindOf, LIMITS, pairWatch, WATCH_SPORT } from '@/data/rules'
+import type { CheckIns, DayDot, DaySession, WatchActivity } from '@/data/types'
 import type { Db } from '@/demo/db'
 import { DEMO_USER } from '@/demo/db'
-import { addDays } from '@/lib/dates'
 import { now } from '@/lib/clock'
+import { addDays, appDay, DAY_STARTS_AT } from '@/lib/dates'
 
 const byDateDesc = (a: { date: string }, b: { date: string }) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)
 const byDate = (a: { date: string }, b: { date: string }) => -byDateDesc(a, b)
+const bySlot = (a: { slot: string; created_at: string }, b: { slot: string; created_at: string }) =>
+  a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : a.created_at < b.created_at ? -1 : 1
 
 let counter = 0
 export function newId() {
@@ -25,44 +27,39 @@ function watchOf(a: Db['activities'][number]): WatchActivity {
   return { id, date, sport, duration_s, distance_m, hr_avg, load, elevation_m }
 }
 
+const blankActivity = {
+  clean: null,
+  distance_m: null,
+  duration_s: null,
+  elevation_m: null,
+  external_id: null,
+  hr_avg: null,
+  load: null,
+  notes: null,
+  raw: null,
+  run_step: null,
+}
+
 export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => number } = {}): Backend {
   // A pause like a real network's, so loading states can be seen (?latency=600)
   const wait = () => new Promise<void>((r) => setTimeout(r, options.latencyMs?.() ?? 0))
 
+  const plan = (id: string) => {
+    const p = db().plan_sessions.find((x) => x.id === id)
+    if (!p) throw new Error('This session is no longer in the plan')
+    return p
+  }
+  const logOf = (id: string) => db().session_logs.find((l) => l.plan_session_id === id)
+  const runLogOf = (id: string) => db().activities.find((a) => a.plan_session_id === id && a.source !== 'intervals')
+
   const lastRunStep = async () => {
     const runs = db()
-      .activities.filter((a) => a.sport === 'run' && a.run_step != null)
+      .activities.filter((a) => a.sport === 'run' && a.source !== 'intervals' && a.run_step != null)
       .sort((a, b) => byDateDesc(a, b) || (a.created_at < b.created_at ? 1 : -1))
     return runs[0]?.run_step ?? 1
   }
 
-  const morning = async (date: string) => {
-    const d = db()
-    const arch = d.symptoms.find((s) => s.date === date && s.body_area === 'arch' && s.timing === 'next_morning')
-    const run = d.activities.find((a) => a.date === addDays(date, -1) && a.sport === 'run' && a.source !== 'intervals')
-    const w = d.weights.find((x) => x.date === date)
-    return {
-      arch: arch ? { id: arch.id, score: arch.score } : null,
-      run: run ? { id: run.id, clean: run.clean } : null,
-      weight: w ? Number(w.kg) : null,
-    }
-  }
-
-  const evening = async (date: string) => {
-    const answers: Evening = {}
-    for (const s of db().symptoms)
-      if (s.date === date && s.timing === 'evening' && s.session_log_id == null && (s.body_area === 'neck' || s.body_area === 'hands'))
-        answers[s.body_area as EveningArea] = { id: s.id, score: s.score }
-    return answers
-  }
-
-  const removeLog = (planSessionId: string) => {
-    const d = db()
-    const log = d.session_logs.find((l) => l.plan_session_id === planSessionId)
-    if (!log) return
-    d.session_logs = d.session_logs.filter((l) => l !== log)
-    d.symptoms = d.symptoms.filter((s) => s.session_log_id !== log.id) // on delete cascade
-  }
+  const syncedAt = async () => db().sync_status.find((s) => s.source === 'intervals')?.synced_at ?? null
 
   const backend: Backend = {
     auth: {
@@ -76,20 +73,24 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
     async day(date) {
       await wait()
       const d = db()
-      const plan = d.plan_sessions
-        .filter((p) => p.date === date)
-        .sort((a, b) => (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : a.created_at < b.created_at ? -1 : 1))
-      const runs = d.activities
-        .filter((a) => a.source === 'intervals' && a.sport === 'run' && a.date === date)
+      const sessions = d.plan_sessions.filter((p) => p.date === date).sort(bySlot)
+      const recorded = d.activities
+        .filter((a) => a.source === 'intervals' && Object.values(WATCH_SPORT).includes(a.sport) && a.date === date)
         .sort((a, b) => (a.created_at < b.created_at ? -1 : 1))
-      let nextRun = 0
-      return plan.map((p): DaySession => {
-        const log = d.session_logs.find((l) => l.plan_session_id === p.id) ?? null
+        .map(watchOf)
+      const logs = sessions.map((p) => d.session_logs.find((l) => l.plan_session_id === p.id) ?? null)
+      const watch = pairWatch(
+        sessions.map((p, i) => ({ kind: p.kind, status: logs[i]?.status })),
+        recorded,
+      )
+      return sessions.map((p, i): DaySession => {
+        const log = logs[i]
         return {
-          ...p,
+          ...structuredClone(p),
+          kind: kindOf(p.kind),
           log: log && { ...log, symptoms: d.symptoms.filter((s) => s.session_log_id === log.id) },
-          activity: d.activities.find((a) => a.plan_session_id === p.id) ?? null,
-          watch: p.kind === 'run' && runs[nextRun] ? watchOf(runs[nextRun++]) : null,
+          activity: d.activities.find((a) => a.plan_session_id === p.id && a.source !== 'intervals') ?? null,
+          watch: watch[i],
           tests: d.tests.filter((t) => t.plan_session_id === p.id),
           videos: p.video_ids.flatMap((id) => d.videos.filter((v) => v.yt_id === id)),
         }
@@ -100,14 +101,27 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
       await wait()
       const d = db()
       const byDay: Record<string, DayDot[]> = {}
-      const plan = d.plan_sessions
-        .filter((p) => p.date >= from && p.date <= to)
-        .sort((a, b) => (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : a.created_at < b.created_at ? -1 : 1))
-      for (const p of plan) {
-        const log = d.session_logs.find((l) => l.plan_session_id === p.id)
-        ;(byDay[p.date] ??= []).push({ id: p.id, slot: p.slot, kind: p.kind, status: log?.status ?? null })
+      for (const p of d.plan_sessions.filter((x) => x.date >= from && x.date <= to).sort(bySlot)) {
+        ;(byDay[p.date] ??= []).push({ id: p.id, slot: p.slot, kind: kindOf(p.kind), status: logOf(p.id)?.status ?? null })
       }
       return byDay
+    },
+
+    async checkIns(date) {
+      await wait()
+      const d = db()
+      const find = (area: string, timing: string) =>
+        d.symptoms.find((s) => s.date === date && s.body_area === area && s.timing === timing && !s.session_log_id)?.score ?? null
+      const run = d.activities.find((a) => a.date === addDays(date, -1) && a.sport === 'run' && a.source !== 'intervals')
+      const w = d.weights.find((x) => x.date === date)
+      const result: CheckIns = {
+        arch: find('arch', 'next_morning'),
+        neck: find('neck', 'evening'),
+        hands: find('hands', 'evening'),
+        weight: w ? Number(w.kg) : null,
+        run: run ? { id: run.id, planSessionId: run.plan_session_id, step: run.run_step, clean: run.clean } : null,
+      }
+      return result
     },
 
     async runSteps() {
@@ -115,30 +129,40 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
       return [...db().run_steps].sort((a, b) => a.step - b.step)
     },
 
-    lastRunStep,
-
-    async morning(date) {
+    async lastRunStep() {
       await wait()
-      return morning(date)
+      return lastRunStep()
     },
 
-    async evening(date) {
+    async lastLog(before) {
       await wait()
-      return evening(date)
+      const d = db()
+      const start = new Date(`${before}T${String(DAY_STARTS_AT).padStart(2, '0')}:00:00`).toISOString()
+      const latest = [...d.session_logs.map((l) => l.logged_at), ...d.symptoms.filter((s) => !s.session_log_id).map((s) => s.created_at)]
+        .filter((t) => t < start)
+        .sort()
+        .pop()
+      return latest ? { date: appDay(new Date(latest)) } : null
     },
 
     async progress(today) {
       await wait()
       const d = db()
       const yearAgo = addDays(today, -364)
+      const next = d.plan_sessions
+        .filter((p) => isRun(p.kind) && p.date >= today && !logOf(p.id))
+        .sort((a, b) => byDate(a, b) || bySlot(a, b))[0]
       return {
         today,
         symptoms: d.symptoms
-          .filter((s) => s.date >= yearAgo && s.date <= today)
+          .filter(
+            (s) => !s.session_log_id && (s.timing === 'next_morning' || s.timing === 'evening') && s.date >= yearAgo && s.date <= today,
+          )
+          .sort(byDate)
           .map(({ date, body_area, timing, score }) => ({ date, body_area, timing, score })),
         runs: d.activities
           .filter((a) => a.sport === 'run' && a.source !== 'intervals' && a.date <= today)
-          .sort(byDateDesc)
+          .sort((a, b) => byDateDesc(a, b) || (a.created_at < b.created_at ? 1 : -1))
           .slice(0, 30)
           .map(({ date, run_step, clean }) => ({ date, run_step, clean })),
         watch: d.activities
@@ -153,6 +177,8 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
           .filter((w) => w.date >= yearAgo && w.date <= today)
           .sort(byDate)
           .map((w) => ({ date: w.date, kg: Number(w.kg) })),
+        nextRun: next ? { date: next.date, run_step: next.run_step, title: next.title } : null,
+        syncedAt: await syncedAt(),
       }
     },
 
@@ -162,6 +188,14 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
         .plan_sessions.filter((p) => p.exercises.includes('sl_heel_raise_test') && p.date >= today)
         .sort(byDate)[0]
       return next ? { date: next.date } : null
+    },
+
+    async testResults(test) {
+      await wait()
+      return db()
+        .tests.filter((t) => t.test === test)
+        .sort(byDate)
+        .map(({ date, side, value, plan_session_id }) => ({ date, side, value, plan_session_id }))
     },
 
     async watch(from, to) {
@@ -174,71 +208,74 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
 
     async oldestWatchDate() {
       await wait()
-      return db().activities.filter((a) => a.source === 'intervals').sort(byDate)[0]?.date ?? null
+      return (
+        db()
+          .activities.filter((a) => a.source === 'intervals')
+          .sort(byDate)[0]?.date ?? null
+      )
     },
 
     async syncedAt() {
       await wait()
-      return db().sync_status.find((s) => s.source === 'intervals')?.synced_at ?? null
+      return syncedAt()
     },
 
     async review(weekStart) {
       await wait()
       const r = db()
         .reviews.filter((x) => x.week_start <= weekStart)
-        .sort((a, b) => (a.week_start < b.week_start ? 1 : -1))[0]
+        .sort((a, b) => (a.week_start < b.week_start ? 1 : a.week_start > b.week_start ? -1 : a.created_at < b.created_at ? 1 : -1))[0]
       return r ? { id: r.id, week_start: r.week_start, summary: r.summary, decisions: r.decisions, created_at: r.created_at } : null
     },
 
-    async setStatus(session, status) {
+    async setStatus(id, status) {
       await wait()
+      if (status) check(LIMITS.status(status), 'status')
       const d = db()
+      const p = plan(id)
+      const clears = clearsOnStatus(status)
+      let log = logOf(id)
       if (status) {
-        const log = d.session_logs.find((l) => l.plan_session_id === session.id)
         if (log) Object.assign(log, { status, logged_at: stamp() })
-        else
-          d.session_logs.push({
-            id: newId(),
-            plan_session_id: session.id,
-            status,
-            comment: null,
-            logged_at: stamp(),
-            user_id: DEMO_USER,
-          })
-      } else removeLog(session.id)
-      if (status === 'skipped' && session.log) d.symptoms = d.symptoms.filter((s) => s.session_log_id !== session.log!.id)
-      if (status === 'skipped' || status === null) d.tests = d.tests.filter((t) => t.plan_session_id !== session.id)
-      if (session.kind !== 'run') return
-      const ran = status === 'done' || status === 'partial'
-      const existing = d.activities.find((a) => a.plan_session_id === session.id)
-      if (ran && !existing) {
+        else {
+          log = { id: newId(), plan_session_id: id, status, comment: null, logged_at: stamp(), user_id: DEMO_USER }
+          d.session_logs.push(log)
+        }
+        const logId = log.id
+        if (clears.pain) d.symptoms = d.symptoms.filter((s) => !(s.session_log_id === logId && s.timing === 'during'))
+      } else if (log) {
+        const logId = log.id
+        d.session_logs = d.session_logs.filter((l) => l.id !== logId)
+        d.symptoms = d.symptoms.filter((s) => s.session_log_id !== logId) // on delete cascade
+      }
+      if (clears.tests) d.tests = d.tests.filter((t) => t.plan_session_id !== id)
+      if (!isRun(p.kind)) return
+      const existing = runLogOf(id)
+      if (clears.runLog) {
+        if (existing) d.activities = d.activities.filter((a) => a !== existing)
+        return
+      }
+      if (!existing)
         d.activities.push({
+          ...blankActivity,
           id: newId(),
-          plan_session_id: session.id,
-          date: session.date,
+          plan_session_id: id,
+          date: p.date,
           sport: 'run',
-          run_step: session.run_step ?? (await lastRunStep()),
+          run_step: p.run_step ?? (await lastRunStep()),
           source: 'manual',
-          clean: null,
           created_at: stamp(),
-          distance_m: null,
-          duration_s: null,
-          elevation_m: null,
-          external_id: null,
-          hr_avg: null,
-          load: null,
-          notes: null,
-          raw: null,
           user_id: DEMO_USER,
         })
-      } else if (!ran && existing) d.activities = d.activities.filter((a) => a !== existing)
     },
 
-    async setPain(session, area, score) {
+    async setPain(id, area, score) {
       await wait()
+      if (score != null) check(LIMITS.score(score), 'pain score')
       const d = db()
-      const log = d.session_logs.find((l) => l.plan_session_id === session.id)
-      if (!log) return
+      const p = plan(id)
+      const log = logOf(id)
+      if (!log) throw new Error('Log the session first')
       const existing = d.symptoms.find((s) => s.session_log_id === log.id && s.body_area === area.body_area && s.timing === 'during')
       if (score == null) d.symptoms = d.symptoms.filter((s) => s !== existing)
       else if (existing) existing.score = score
@@ -246,7 +283,7 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
         d.symptoms.push({
           id: newId(),
           session_log_id: log.id,
-          date: session.date,
+          date: p.date,
           body_area: area.body_area,
           side: area.side,
           timing: 'during',
@@ -257,29 +294,34 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
         })
     },
 
-    async setRun(activityId, changes) {
+    async setRun(id, changes) {
       await wait()
-      const a = db().activities.find((x) => x.id === activityId)
+      if (changes.run_step != null) check(LIMITS.step(changes.run_step), 'ladder step')
+      const a = runLogOf(id)
       if (a) Object.assign(a, changes)
     },
 
-    async setComment(planSessionId, comment) {
+    async setComment(id, comment) {
       await wait()
-      const log = db().session_logs.find((l) => l.plan_session_id === planSessionId)
+      const log = logOf(id)
       if (log) log.comment = comment
     },
 
-    async setTest(session, spec, side, value) {
+    async setTest(id, spec, side, value) {
       await wait()
       const d = db()
-      const existing = d.tests.find((t) => t.plan_session_id === session.id && t.test === spec.test && t.side === side)
-      if (value == null) d.tests = d.tests.filter((t) => t !== existing)
-      else if (existing) existing.value = value
+      const existing = d.tests.find((t) => t.plan_session_id === id && t.test === spec.test && t.side === side)
+      if (value == null) {
+        d.tests = d.tests.filter((t) => t !== existing)
+        return
+      }
+      const p = plan(id)
+      if (existing) existing.value = value
       else
         d.tests.push({
           id: newId(),
-          plan_session_id: session.id,
-          date: session.date,
+          plan_session_id: id,
+          date: p.date,
           test: spec.test,
           side,
           value,
@@ -290,73 +332,48 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
         })
     },
 
-    async moveSession(session, date, slot) {
+    async moveSession(id, date, slot) {
       await wait()
+      check(LIMITS.slot(slot), 'slot')
       const d = db()
-      const p = d.plan_sessions.find((x) => x.id === session.id)
-      if (!p) throw new Error('This session no longer exists')
+      const p = d.plan_sessions.find((x) => x.id === id)
+      if (!p) return // like an update that matches no row
       Object.assign(p, { date, slot })
-      const log = d.session_logs.find((l) => l.plan_session_id === session.id)
+      const log = logOf(id)
       for (const s of d.symptoms) if (log && s.session_log_id === log.id) s.date = date
-      for (const a of d.activities) if (a.plan_session_id === session.id) a.date = date
-      for (const t of d.tests) if (t.plan_session_id === session.id) t.date = date
+      for (const a of d.activities) if (a.plan_session_id === id) a.date = date
+      for (const t of d.tests) if (t.plan_session_id === id) t.date = date
     },
 
-    async saveArch(date, score) {
+    async saveCheckIn(date, area, score) {
       await wait()
+      if (score != null) check(LIMITS.score(score), 'score')
       const d = db()
-      const existing = d.symptoms.find((s) => s.date === date && s.body_area === 'arch' && s.timing === 'next_morning')
-      if (score == null) d.symptoms = d.symptoms.filter((s) => s !== existing)
-      else if (existing) existing.score = score
-      else
-        d.symptoms.push({
-          id: newId(),
-          date,
-          body_area: 'arch',
-          side: 'R',
-          timing: 'next_morning',
-          score,
-          context: 'morning check-in',
-          session_log_id: null,
-          created_at: stamp(),
-          user_id: DEMO_USER,
-        })
+      const timing = checkInTiming(area)
+      const match = (s: Db['symptoms'][number]) => s.date === date && s.body_area === area && s.timing === timing && !s.session_log_id
+      if (score == null) {
+        d.symptoms = d.symptoms.filter((s) => !match(s))
+        return
+      }
+      const existing = d.symptoms.find(match)
+      if (existing) existing.score = score
+      else d.symptoms.push({ ...checkInRow(date, area, score), id: newId(), session_log_id: null, created_at: stamp(), user_id: DEMO_USER })
     },
 
-    async saveClean(activityId, clean) {
+    async saveClean(runLogId, clean) {
       await wait()
-      const a = db().activities.find((x) => x.id === activityId)
+      const a = db().activities.find((x) => x.id === runLogId)
       if (a) a.clean = clean
     },
 
     async saveWeight(date, kg) {
       await wait()
+      if (kg != null) check(LIMITS.kg(kg), 'weight')
       const d = db()
       const existing = d.weights.find((w) => w.date === date)
       if (kg == null) d.weights = d.weights.filter((w) => w !== existing)
       else if (existing) existing.kg = kg
       else d.weights.push({ id: newId(), date, kg, created_at: stamp(), user_id: DEMO_USER })
-    },
-
-    async saveEvening(date, area, score) {
-      await wait()
-      const d = db()
-      const existing = d.symptoms.find((s) => s.date === date && s.body_area === area && s.timing === 'evening' && s.session_log_id == null)
-      if (score == null) d.symptoms = d.symptoms.filter((s) => s !== existing)
-      else if (existing) existing.score = score
-      else
-        d.symptoms.push({
-          id: newId(),
-          date,
-          body_area: area,
-          side: 'C',
-          timing: 'evening',
-          score,
-          context: area === 'hands' ? 'tingling' : 'evening check-in',
-          session_log_id: null,
-          created_at: stamp(),
-          user_id: DEMO_USER,
-        })
     },
 
     async syncNow() {

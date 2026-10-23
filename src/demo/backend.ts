@@ -17,10 +17,9 @@ const WRITES = new Set<keyof Backend>([
   'setComment',
   'setTest',
   'moveSession',
-  'saveArch',
+  'saveCheckIn',
   'saveClean',
   'saveWeight',
-  'saveEvening',
   'syncNow',
 ])
 
