@@ -1,15 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Pisada: a right footprint on the accent blue. Content stays inside the
-       central 80% so it also works as a "maskable" (cropped) Android icon. -->
-  <rect width="512" height="512" fill="#155dfc"/>
-  <g fill="#ffffff" transform="translate(256 256) scale(0.85) translate(-303 -300)">
-    <!-- sole: wide forefoot, narrow arch on the inside (left), round heel -->
-    <path d="M292 196c40 6 62 44 58 92-4 44-22 70-24 104-2 30 6 52-6 72-14 22-50 24-66 4-14-18-6-44-10-72-4-30-30-56-32-104-2-56 34-102 80-96z"/>
-    <!-- toes, big toe first -->
-    <ellipse cx="236" cy="150" rx="27" ry="33"/>
-    <ellipse cx="290" cy="132" rx="19" ry="23"/>
-    <ellipse cx="332" cy="142" rx="16" ry="19"/>
-    <ellipse cx="364" cy="164" rx="13" ry="16"/>
-    <ellipse cx="386" cy="194" rx="11" ry="13"/>
+  <!-- Pisada: a right footprint ("pisada"), the arch cut in on the inner side, on the app's
+       blue (the primary colour). The mark stays inside the central circle, so it also works as a
+       maskable (cropped) Android icon. -->
+  <rect width="512" height="512" fill="#006dc3"/>
+  <g fill="#ffffff" transform="translate(256 256) scale(1.02) translate(-266 -290)">
+    <g>
+      <!-- right foot print: round heel, the arch cut in on the inner (left) side, wide forefoot -->
+      <path d="M180 250 C 176 190 222 160 268 162 C 322 164 356 200 352 262 C 349 318 322 360 318 410 C 314 460 296 492 262 492 C 226 492 210 462 214 428 C 218 396 246 372 244 334 C 242 300 184 300 180 250 Z"/>
+      <!-- three toes, big toe first (inner side) -->
+      <circle cx="204" cy="116" r="36"/>
+      <circle cx="272" cy="98" r="27"/>
+      <circle cx="328" cy="116" r="22"/>
+    </g>
+    
   </g>
 </svg>

@@ -50,19 +50,22 @@ The thermometer dashboard was public. This app holds health data, so:
 3. **Calm, not gamified.** No streaks, confetti or guilt for skipped days. A skip is data.
 4. **Colour carries meaning only for pain and status.** Everything else stays neutral.
 5. **Light only** (Pedro's choice, 21 Oct), even when the phone is in dark mode. The `.dark` colours were removed from `src/index.css`.
+6. **Nothing pops up by itself** (23 Oct). Check-ins are cards on Today with the answers right there; the evening one waits quietly until 18:00.
 
 ### Tokens (set as shadcn theme variables)
 | Token | Use |
 |---|---|
 | Base colour: shadcn **neutral** (or **zinc**) | All surfaces and text |
-| `--primary` | One accent only, for the primary action (Done) |
-| `--pain-low` (green), 0–3: None, Mild | Matches the "≤3/10 is acceptable" rule |
+| `--primary` | One accent only: the main action, "done", links. `oklch(0.53 0.16 250)` (#006dc3), 5.3:1 on white (23 Oct, was 4.5) |
+| `--pain-low` (green), 0–3: None, Mild | Matches the "≤3/10 is acceptable" rule. Darker since 23 Oct so white text on it passes AA |
 | `--pain-mid` (amber), 4–6: Moderate | Hold or back off |
 | `--pain-high` (red), 7–10: Severe, Unbearable | Stop |
-| `--status-done` / `--status-partial` / `--status-skipped` | Week strip dots |
-| Font: Geist or Inter, system fallback | One family; differentiate by weight |
-| Radius: shadcn default (`0.625rem`) | Keep consistent |
-| Spacing: Tailwind 4-pt scale | No custom spacing values |
+| `--status-done` / `--status-partial` / `--status-skipped` | Status marks: done filled, **partly half filled** (shape, not a paler blue), skipped grey with a dash; a past session never logged has a dashed ring |
+| Font: Geist, system fallback | One family; differentiate by weight |
+| Type scale (23 Oct) | 12 · 14 · 16 · 20 · 28 (`text-display`: page titles, card numbers) · 40 (`text-hero`: one number on a detail screen) |
+| Radius | Cards `rounded-xl`, controls `rounded-lg`, buttons `rounded-full` |
+| Spacing: Tailwind 4-pt scale | Page gutter 16 px, cards `p-4`, `gap-3` between cards |
+| Motion | 150–250 ms, soft ease; screens slide in 16 px; only fades with reduced motion. No confetti, no counting up |
 
 Pain colours always come with the word, never colour alone.
 
@@ -75,9 +78,10 @@ Pain colours always come with the word, never colour alone.
 | Session card | `Card`: title, instructions, videos; "Log session" button or a grey summary once logged |
 | Done / Partial / Skipped | `ToggleGroup` |
 | Pain (5 levels) | 5-step `ToggleGroup`, words always shown |
-| Log drawer (status, pain, run, comment) | `Drawer` (bottom sheet) with `Textarea` for the comment |
-| Morning arch check-in | `Drawer`, opened automatically once |
-| Run log (ladder step, clean y/n) | `Select` + `Switch` |
+| Logging a session | One tap on Today's row, or Done / Partly / Skipped at the bottom of the session (23 Oct). Details (pain, step, note) in a `Drawer` |
+| Morning and evening check-ins | Cards on Today with the answer words inline (23 Oct; were drawers that opened by themselves) |
+| Run log (ladder step, clean y/n) | `Select` for the step; "clean?" asked the next morning (`Choice`) |
+| Coach's weekly note (`reviews`) | Card at the top of Today until "Got it", then one row; also on Progress |
 | Week strip | custom row of status dots + `Tooltip` |
 | Video links | Small thumbnail of the first video (`AspectRatio`) beside the title, plus `Button` (link variant) per video with duration as a `Badge` |
 | Exercise figures | Line-figure SVG (`src/exercises/`): 16:9 thumbnail in `CardAction` + a row per exercise; tap opens a `Drawer` (90% height) with the figure, today's plan, tempo, cues, don'ts, setup |
@@ -164,7 +168,7 @@ Every table also gets `user_id`, which is the column the RLS policies check.
   - **Schema:** `activities.external_id` (unique per user, for safe re-runs), `source = 'intervals'`, `load`, `raw jsonb`.
   - **Action:** `GET /api/v1/athlete/{id}/activities?oldest=…&newest=…` with HTTP Basic auth (user `API_KEY`, the key as password); check field names against the API docs. Mapping, roughly: `type`→sport, `start_date_local`→date, `moving_time`→duration_s, `distance`→distance_m, `average_heartrate`→hr_avg, `total_elevation_gain`→elevation_m, `icu_training_load`→load. Upsert on (user_id, external_id) with Pedro's user_id. Rolling window of the last 7 days, so edits in intervals.icu come through; a one-off backfill from 2026-07-15.
   - **Secrets** (GitHub Actions only): `INTERVALS_API_KEY`, `INTERVALS_ATHLETE_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PISADA_USER_ID`. The service_role key never goes into the app or the repo.
-  - **Watch data vs your taps:** HR, distance and time come from the watch; ladder step, clean y/n and pain stay manual in the app. *Open:* how a run's log (today an `activities` row tied to its session) joins its synced activity: by date, or a link the app fills in.
+  - **Watch data vs your taps:** HR, distance and time come from the watch; ladder step, clean y/n and pain stay manual in the app. **Joined in the app (23 Oct):** a run or hike session shows the watch activity of the same date and sport (`src/data/rules.ts`, `pairWatch`), in order, skipping skipped sessions. No schema change.
   - Commutes (bike) are real load; separate them in Pisada if needed (auto-flagging is paid in intervals.icu).
   - *Later, optional:* a `wellness` table (resting HR, HRV, sleep, sleep score) from `/athlete/{id}/wellness`. The Suunto → intervals wellness sync is flaky for some users, so it's nice-to-have.
 - Weekly check-in in the claude.ai project: Claude reads the week, including the synced activities.
@@ -186,6 +190,15 @@ Every table also gets `user_id`, which is the column the RLS policies check.
 - Running volume and ladder step over time
 - Adherence (done / planned)
 - Test results, left vs right
+
+### Overhaul · 23 Oct 2026 (brief: `docs/OVERHAUL.md`)
+A long cloud run built a **demo mode** (made-up data, no login: https://pdpb-me.github.io/pisada/demo/), simulated 12 weeks with helper "Pedros", a coach, a design critic and an architecture critic, and rebuilt the app from what they found. Findings and decisions: `docs/overhaul/FINDINGS.md`; screens before/after: `docs/overhaul/screens/`.
+- [x] One data layer (`src/data`) with a Supabase and an in-memory backend; writes safe against quick taps; one clock
+- [x] Today: one-tap logging, check-ins inline, the coach's note, "yesterday not logged", "welcome back"
+- [x] Session: log in the thumb zone, watch data on runs and hikes, a clearer heel-raise test, quicker moves
+- [x] Progress: headline, recent state first, "what goes with a bad neck day", test and ladder cards without streaks
+- [x] Contrast, type scale, states (loading, empty, error), focus, motion, new app icon
+- [x] Vitest for the pure logic, the simulator and the backend rules
 
 ### Later, only if you'll actually use them
 - A tap-the-body pain map

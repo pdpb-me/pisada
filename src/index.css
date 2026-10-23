@@ -16,6 +16,19 @@
     --color-status-done: var(--status-done);
     --color-status-partial: var(--status-partial);
     --color-status-skipped: var(--status-skipped);
+    /* Type scale (see PLAN.md, "Design language"): caption 12, secondary 14, body 16,
+       heading 20, display 28 (page titles), hero 40 (one number on a detail screen) */
+    --text-display: 1.75rem;
+    --text-display--line-height: 2.125rem;
+    --text-display--letter-spacing: -0.02em;
+    --text-hero: 2.5rem;
+    --text-hero--line-height: 1;
+    --text-hero--letter-spacing: -0.02em;
+    --ease-out-soft: cubic-bezier(0.2, 0, 0, 1);
+    --animate-screen-in: screen-in 200ms var(--ease-out-soft);
+    --animate-screen-back: screen-back 200ms var(--ease-out-soft);
+    --animate-pop: pop 180ms var(--ease-out-soft);
+    --animate-fade-in: fade-in 200ms var(--ease-out-soft);
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
@@ -66,8 +79,8 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    /* One accent only, for the primary action (Done) */
-    --primary: oklch(0.57 0.155 250);
+    /* One accent only: the main action, done, links. 5.3:1 on white (AA) */
+    --primary: oklch(0.53 0.16 250);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.955 0.004 264.5);
     --secondary-foreground: oklch(0.205 0 0);
@@ -86,16 +99,17 @@
     --chart-5: oklch(0.269 0 0);
     --radius: 0.875rem;
     /* Pain: 0-3 ok, 4-6 hold or back off, 7-10 stop. Always shown with the number. */
-    --pain-low: oklch(0.627 0.17 149.2);
+    --pain-low: oklch(0.52 0.14 150);
     --pain-low-foreground: oklch(0.985 0 0);
     --pain-mid: oklch(0.769 0.165 70.1);
     --pain-mid-foreground: oklch(0.205 0 0);
     --pain-high: oklch(0.577 0.215 27.3);
     --pain-high-foreground: oklch(0.985 0 0);
-    /* Week strip dots */
+    /* Session status: done is the accent; partly is the same colour, half filled (shape,
+       not a paler colour); skipped is a neutral grey */
     --status-done: var(--primary);
-    --status-partial: oklch(from var(--primary) l c h / 45%);
-    --status-skipped: oklch(0.708 0 0);
+    --status-partial: var(--primary);
+    --status-skipped: oklch(0.6 0 0);
     /* Exercise figures (src/exercises/): flat-colour figure. --fig-panel = background behind the figure */
     --fig-accent: var(--primary);
     --fig-panel: var(--muted);
@@ -130,7 +144,40 @@
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
     }
+  /* A visible focus ring for keyboard users, on every control */
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    }
+  /* Numbers line up in columns */
+  .tabular-nums, time {
+    font-variant-numeric: tabular-nums;
+    }
   html {
     @apply font-sans;
     }
+}
+/* Motion: short and soft, and only when the phone allows it (reduced motion: fades only) */
+@keyframes screen-in {
+  from { opacity: 0; transform: translateX(16px); }
+}
+@keyframes screen-back {
+  from { opacity: 0; transform: translateX(-16px); }
+}
+@keyframes pop {
+  from { transform: scale(0.85); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes screen-in { from { opacity: 0; } }
+  @keyframes screen-back { from { opacity: 0; } }
+  @keyframes pop { from { opacity: 0.6; } }
+}
+
+/* "Partly": half filled, so it reads by shape as well as colour */
+.status-half {
+  background: linear-gradient(90deg, var(--status-partial) 50%, transparent 50%);
+  box-shadow: inset 0 0 0 1.5px var(--status-partial);
 }

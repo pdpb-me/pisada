@@ -1,4 +1,6 @@
 # Builds the app and publishes it to https://pdpb-me.github.io/pisada/
+# and the demo (made-up data, no login) to https://pdpb-me.github.io/pisada/demo/
+# (`npm run build` builds both: the real app into dist/, the demo into dist/demo/).
 # Runs every time code is pushed to main (or by hand from the Actions tab).
 name: Deploy to GitHub Pages
 
@@ -28,6 +30,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: npm test
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

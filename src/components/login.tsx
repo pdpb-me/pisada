@@ -11,7 +11,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
-import { supabase } from '@/lib/supabase'
+import { data } from '@/data/store'
 
 const CODE_LENGTH = 8 // must match Supabase: Auth > Sign In / Providers > Email > Email OTP Length
 const EMAIL_KEY = 'pisada:last-email'
@@ -24,7 +24,7 @@ function rememberedEmail() {
   }
 }
 
-// Two steps: type your email -> get a 6-digit code by email -> type the code.
+// Two steps: type your email -> get a code by email (CODE_LENGTH digits) -> type the code.
 export function Login() {
   const [email, setEmail] = useState(rememberedEmail)
   const [step, setStep] = useState<'email' | 'code'>('email')
@@ -34,7 +34,7 @@ export function Login() {
   async function sendCode(e?: React.FormEvent) {
     e?.preventDefault()
     setBusy(true)
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
+    const error = await data.auth.sendCode(email.trim()).then(() => null, (e: Error) => e)
     setBusy(false)
     if (error) {
       toast.error(error.message)
@@ -52,11 +52,7 @@ export function Login() {
 
   async function verify(token: string) {
     setBusy(true)
-    const { error } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token,
-      type: 'email',
-    })
+    const error = await data.auth.verify(email.trim(), token).then(() => null, (e: Error) => e)
     setBusy(false)
     if (error) {
       toast.error(error.message)
@@ -69,6 +65,7 @@ export function Login() {
     <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center p-4">
       <Card>
         <CardHeader>
+          <img src={`${import.meta.env.BASE_URL}icons/icon.svg`} alt="" className="mb-2 size-12 rounded-xl" />
           <CardTitle className="text-2xl">Pisada</CardTitle>
           <CardDescription>
             {step === 'email'
@@ -126,6 +123,9 @@ export function Login() {
           )}
         </CardContent>
       </Card>
+      <a href={`${import.meta.env.BASE_URL}demo/`} className="mt-6 self-center p-3 text-sm text-muted-foreground underline-offset-4 hover:underline">
+        Not Pedro? See the demo, with made-up data
+      </a>
     </main>
   )
 }
