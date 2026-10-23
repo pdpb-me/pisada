@@ -11,18 +11,19 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDay, type DaySession } from '@/hooks/use-day'
-import { lastRunStep, useRunSteps, type RunStep } from '@/hooks/use-run-steps'
+import { useLastRunStep, useRunSteps, type RunStep } from '@/hooks/use-run-steps'
 import { useScreens } from '@/hooks/use-screens'
 import { useWeek, type DayDot } from '@/hooks/use-week'
-import { addDays, longDate, todayISO, weekOf } from '@/lib/dates'
-import { supabase } from '@/lib/supabase'
+import { data } from '@/data/store'
+import { useToday } from '@/lib/clock'
+import { addDays, longDate, weekOf } from '@/lib/dates'
 
 type Screen = { kind: 'day' } | { kind: 'session'; id: string } | { kind: 'exercise'; id: string; index: number }
 
 // Opens on today. Three screens: the day (plan + check-ins) → a session → an exercise.
 // The week strip opens other days (e.g. to fix yesterday's log).
 export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void }) {
-  const today = todayISO()
+  const today = useToday()
   const [date, setDate] = useState(today)
   // the week shown in the strip: swiping or the arrows change it, the chosen day stays
   const [monday, setMonday] = useState(() => weekOf(today)[0])
@@ -35,10 +36,7 @@ export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void 
   }
   const runSteps = useRunSteps()
   // the step a planned run will use (for its rough time): the last logged run's
-  const [currentStep, setCurrentStep] = useState<number | null>(null)
-  useEffect(() => {
-    lastRunStep().then(setCurrentStep)
-  }, [])
+  const currentStep = useLastRunStep()
 
   // key: a fresh day (and screen stack) per date, so the previous day never shows while loading
   return (
@@ -48,7 +46,6 @@ export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void 
       today={today}
       days={days}
       dots={week.dots}
-      onWeekChanged={week.reload}
       onDate={choose}
       onWeek={(dir) => setMonday(addDays(monday, dir * 7))}
       runSteps={runSteps}
@@ -63,7 +60,6 @@ function Day({
   today,
   days,
   dots,
-  onWeekChanged,
   onDate,
   onWeek,
   runSteps,
@@ -74,7 +70,6 @@ function Day({
   today: string
   days: string[]
   dots: Record<string, DayDot[]>
-  onWeekChanged: () => void
   onDate: (date: string) => void
   onWeek: (direction: -1 | 1) => void
   runSteps: RunStep[]
@@ -91,20 +86,14 @@ function Day({
   }, [deep, onDeepChange])
 
   const handlers = (s: DaySession): SessionHandlers => ({
-    onStatus: async (status) => {
-      await day.setStatus(s, status)
-      onWeekChanged()
-    },
+    onStatus: (status) => day.setStatus(s, status),
     onPain: (area, score) => day.setPain(s, area, score),
     onRun: (changes) => day.setRun(s, changes),
     onComment: (comment) => day.setComment(s, comment),
     onTest: (spec, side, value) => day.setTest(s, spec, side, value),
     onMove: async (newDate, slot) => {
       const ok = await day.moveSession(s, newDate, slot)
-      if (ok) {
-        toast.success(`Moved to ${longDate(newDate)}`)
-        onWeekChanged()
-      }
+      if (ok) toast.success(`Moved to ${longDate(newDate)}`)
       return ok
     },
   })
@@ -159,7 +148,7 @@ function Day({
               size="icon"
               className="size-11 text-muted-foreground"
               aria-label="Log out"
-              onClick={() => supabase.auth.signOut()}
+              onClick={() => data.auth.signOut()}
             >
               <LogOutIcon />
             </Button>

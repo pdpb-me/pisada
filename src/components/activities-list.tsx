@@ -60,8 +60,8 @@ function shiftMonth(month: string, by: number) {
 export function Activities({ today }: { today: string }) {
   const thisMonth = weekOf(today)[0].slice(0, 7) // the month this week belongs to
   const [month, setMonth] = useState(thisMonth)
-  const { items, oldestMonth, reload } = useWatchMonth(month)
-  const sync = useSync(reload)
+  const { items, oldestMonth } = useWatchMonth(month)
+  const sync = useSync()
   const time = (items ?? []).reduce((t, a) => t + (a.duration_s ?? 0), 0)
 
   return (

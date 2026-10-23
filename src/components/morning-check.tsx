@@ -38,12 +38,12 @@ function markAsked(date: string) {
 // Opens by itself once per morning; after "Later" it stays as a small
 // reminder at the top of Today until answered.
 export function MorningCheck({ date, isToday }: { date: string; isToday: boolean }) {
-  const { answer, save, run, saveClean, weight, saveWeight } = useMorningCheck(date)
+  const { loaded, answer, save, run, saveClean, weight, saveWeight } = useMorningCheck(date)
   const [open, setOpen] = useState(false)
 
   const cleanPending = run != null && run.clean == null
   const complete = answer != null && !cleanPending
-  const shouldAutoOpen = isToday && !complete && !alreadyAsked(date)
+  const shouldAutoOpen = loaded && isToday && !complete && !alreadyAsked(date)
   useEffect(() => {
     if (!shouldAutoOpen) return
     markAsked(date)

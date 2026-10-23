@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react'
-import type { Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { data } from '@/data/store'
 
-// The current login session: undefined while loading, null when logged out.
-// Supabase keeps it in the browser and refreshes it, so you stay logged in.
+// Logged in? undefined while checking, then true/false. The login stays in the
+// browser and is refreshed, so you stay logged in.
 export function useSession() {
-  const [session, setSession] = useState<Session | null | undefined>(undefined)
+  const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
-    return () => data.subscription.unsubscribe()
+    data.auth.signedIn().then(setSignedIn)
+    return data.auth.onChange(setSignedIn)
   }, [])
 
-  return session
+  return signedIn
 }

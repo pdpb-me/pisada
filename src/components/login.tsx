@@ -11,7 +11,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
-import { supabase } from '@/lib/supabase'
+import { data } from '@/data/store'
 
 const CODE_LENGTH = 8 // must match Supabase: Auth > Sign In / Providers > Email > Email OTP Length
 const EMAIL_KEY = 'pisada:last-email'
@@ -34,7 +34,7 @@ export function Login() {
   async function sendCode(e?: React.FormEvent) {
     e?.preventDefault()
     setBusy(true)
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
+    const error = await data.auth.sendCode(email.trim()).then(() => null, (e: Error) => e)
     setBusy(false)
     if (error) {
       toast.error(error.message)
@@ -52,11 +52,7 @@ export function Login() {
 
   async function verify(token: string) {
     setBusy(true)
-    const { error } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token,
-      type: 'email',
-    })
+    const error = await data.auth.verify(email.trim(), token).then(() => null, (e: Error) => e)
     setBusy(false)
     if (error) {
       toast.error(error.message)

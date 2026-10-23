@@ -1,33 +1,14 @@
-import { useEffect, useState } from 'react'
-import type { Tables } from '@/lib/database.types'
-import { supabase } from '@/lib/supabase'
+import { data } from '@/data/store'
+import { useQuery } from '@/data/use-query'
 
-export type RunStep = Tables<'run_steps'>
+export type { RunStep } from '@/data/types'
 
 // The ladder steps, as stored in the run_steps table (the coaching chat adds more)
 export function useRunSteps() {
-  const [steps, setSteps] = useState<RunStep[]>([])
-
-  useEffect(() => {
-    supabase
-      .from('run_steps')
-      .select('*')
-      .order('step')
-      .then(({ data }) => setSteps(data ?? []))
-  }, [])
-
-  return steps
+  return useQuery('run-steps', data.runSteps).data ?? []
 }
 
 // The step of the most recently logged run: the default for the next one
-export async function lastRunStep(): Promise<number> {
-  const { data } = await supabase
-    .from('activities')
-    .select('run_step')
-    .eq('sport', 'run')
-    .not('run_step', 'is', null)
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(1)
-  return data?.[0]?.run_step ?? 1
+export function useLastRunStep() {
+  return useQuery('last-run-step', data.lastRunStep).data ?? null
 }

@@ -1,5 +1,6 @@
 // Dates are stored as plain 'YYYY-MM-DD' in the phone's local time zone,
 // so "today" means today where you are, not in UTC.
+import { now } from '@/lib/clock'
 
 export function toISODate(d: Date) {
   const y = d.getFullYear()
@@ -9,7 +10,7 @@ export function toISODate(d: Date) {
 }
 
 export function todayISO() {
-  return toISODate(new Date())
+  return toISODate(now())
 }
 
 // 'Wednesday 14 October'

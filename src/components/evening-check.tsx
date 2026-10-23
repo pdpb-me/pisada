@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useHour } from '@/lib/clock'
 import { MoonIcon } from 'lucide-react'
 import { CheckCard } from '@/components/check-card'
 import { PainScale } from '@/components/pain-scale'
@@ -38,11 +39,11 @@ function markAsked(date: string) {
 // (and on past days, so a forgotten evening can be filled in the next day);
 // the sheet opens by itself once an evening.
 export function EveningCheck({ date, isToday }: { date: string; isToday: boolean }) {
-  const { answers, save, complete } = useEveningCheck(date)
+  const { loaded, answers, save, complete } = useEveningCheck(date)
   const [open, setOpen] = useState(false)
-  const [hour] = useState(() => new Date().getHours())
+  const hour = useHour()
 
-  const shouldAutoOpen = isToday && hour >= OPEN_FROM_HOUR && !complete && !alreadyAsked(date)
+  const shouldAutoOpen = loaded && isToday && hour >= OPEN_FROM_HOUR && !complete && !alreadyAsked(date)
   useEffect(() => {
     if (!shouldAutoOpen) return
     markAsked(date)

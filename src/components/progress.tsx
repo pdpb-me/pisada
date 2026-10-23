@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useNextTest } from '@/hooks/use-next-test'
 import { useProgress, type Progress as Data } from '@/hooks/use-progress'
+import { useToday } from '@/lib/clock'
 import { useRunSteps } from '@/hooks/use-run-steps'
 import { useScreens } from '@/hooks/use-screens'
 import { useWeek } from '@/hooks/use-week'
@@ -36,7 +37,7 @@ function daysBetween(from: string, to: string) {
 
 // Dashboard (cards) | Activities (watch data); a pain card opens its detail.
 export function Progress({ onDeepChange }: { onDeepChange: (deep: boolean) => void }) {
-  return <ProgressView data={useProgress()} onDeepChange={onDeepChange} />
+  return <ProgressView data={useProgress(useToday())} onDeepChange={onDeepChange} />
 }
 
 // Drawing only, so it can also be shown with sample data
