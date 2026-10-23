@@ -20,7 +20,7 @@ export function weightChange(weights: Weight[], today: string, days: number) {
 }
 
 export function changeText(change: number | null, period: string) {
-  if (change == null) return 'Not enough entries to compare'
-  if (Math.abs(change) < 0.2) return `→ About the same as ${period}`
-  return `${change < 0 ? '↓' : '↑'} ${Math.abs(change).toFixed(1)} kg vs ${period}`
+  if (change == null) return 'not enough entries to compare'
+  if (Math.abs(change) < 0.2) return `about the same as ${period}`
+  return `${Math.abs(change).toFixed(1)} kg ${change < 0 ? 'less' : 'more'} than ${period}`
 }

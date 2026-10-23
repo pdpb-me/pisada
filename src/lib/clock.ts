@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { appDay } from '@/lib/dates'
 
 // The one place that knows "now". The real app follows the phone's clock; the demo
 // sets it to a made-up moment (it keeps ticking from there). Everything that needs
@@ -34,14 +35,10 @@ function subscribe(listener: () => void) {
   }
 }
 
-function localISO(d: Date) {
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  return `${d.getFullYear()}-${m}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// Today's date ('YYYY-MM-DD', local) that re-renders when the day changes
+// Today's date ('YYYY-MM-DD', local) that re-renders when the day changes. The app's
+// day starts at 04:00 (see appDay): at 00:30 the evening check-in is still "today".
 export function useToday() {
-  return useSyncExternalStore(subscribe, () => localISO(now()))
+  return useSyncExternalStore(subscribe, () => appDay(now()))
 }
 
 // The current hour (0–23), re-rendering when it changes

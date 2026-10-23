@@ -1,8 +1,8 @@
 // "What goes with a bad day": for each thing that may make an area worse (a long bike
 // day, a run, …), how often the area was bad on days with it and on days without it.
 // Plain counts, no statistics: with a few weeks of answers that's the honest level.
-import { addDays } from '@/lib/dates'
-import type { AreaId } from '@/lib/trends'
+import { addDays, toISODate } from '@/lib/dates'
+import { dailySeries, type AreaId, type Symptom } from '@/lib/trends'
 
 export type DayScore = { date: string; score: number | null }
 export type WatchDay = { date: string; sport: string; duration_s: number | null }
@@ -56,9 +56,7 @@ export function factorTests(area: AreaId, watch: WatchDay[], runDates: Set<strin
 }
 
 export function badDayRule(area: AreaId) {
-  return area === 'hands'
-    ? { word: 'tingled', test: (s: number) => s > 0 }
-    : { word: 'Mild or worse', test: (s: number) => s >= 2 }
+  return area === 'hands' ? { word: 'tingled', test: (s: number) => s > 0 } : { word: 'Mild or worse', test: (s: number) => s >= 2 }
 }
 
 export function factorsFor(area: AreaId, days: DayScore[], tests: Test[]): FactorResult {
@@ -86,4 +84,27 @@ export function lift(f: Factor) {
 export function liftWord(f: Factor) {
   const l = lift(f)
   return l >= 0.25 ? 'More often' : l <= -0.25 ? 'Less often' : 'About the same'
+}
+
+// The days the watch data is complete for: a day's rides arrive at the 20:00 sync (or the
+// next morning's), so later days are left out of the comparison
+export function syncedThrough(syncedAt: string | null) {
+  if (!syncedAt) return null
+  const at = new Date(syncedAt)
+  const date = toISODate(at)
+  return at.getHours() >= 20 ? date : addDays(date, -1)
+}
+
+export function areaFactors(
+  area: AreaId,
+  input: { symptoms: Symptom[]; watch: WatchDay[]; runs: { date: string }[]; today: string; syncedAt: string | null },
+  days: number,
+): FactorResult {
+  // (the arch looks at the day before, so it can use one more day)
+  const synced = syncedThrough(input.syncedAt)
+  const through = synced ? (area === 'arch' ? addDays(synced, 1) : synced) : input.today
+  const series = dailySeries(input.symptoms, area, input.today, days).filter((d) => d.date <= through)
+  const neck = new Map(dailySeries(input.symptoms, 'neck', input.today, days).map((d) => [d.date, d.score]))
+  const tests = factorTests(area, input.watch, new Set(input.runs.map((r) => r.date)), (d) => (neck.get(d) ?? 0) >= 2)
+  return factorsFor(area, series, tests)
 }

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, toISODate, weekOf } from '@/lib/dates'
-import { num } from '@/lib/ladder'
+import { dueCheckIns } from '@/lib/check-ins'
+import { addDays, appDay, daysBetween, toISODate, weekOf } from '@/lib/dates'
+import { ladderStatus, num } from '@/lib/ladder'
 import { painBand, painLabel, painLevelFor } from '@/lib/pain'
 import { tinglingLabel } from '@/lib/tingling'
-import { compare, dailySeries } from '@/lib/trends'
+import { areaSummary, compare, dailySeries, headline } from '@/lib/trends'
+import { rightOfLeft, testDays } from '@/lib/tests'
 import { changeText, weightChange } from '@/lib/weight'
 
 describe('dates (local calendar days)', () => {
@@ -73,14 +75,78 @@ describe('weight', () => {
     const list = [w('2026-11-05', 73.4), w('2026-11-08', 73.2), w('2026-11-13', 72.8), w('2026-11-15', 72.6)]
     const { change } = weightChange(list, '2026-11-15', 7)
     expect(change).toBeCloseTo(-0.6)
-    expect(changeText(change, 'last week')).toBe('↓ 0.6 kg vs last week')
+    expect(changeText(change, 'last week')).toBe('0.6 kg less than last week')
     expect(weightChange([w('2026-11-15', 72)], '2026-11-15', 7).change).toBeNull()
   })
 })
 
-describe('ladder numbers', () => {
-  it('writes decimals with a comma', () => {
-    expect(num(1.5)).toBe('1,5')
+describe('ladder', () => {
+  it('writes minutes plainly', () => {
+    expect(num(1.5)).toBe('1.5')
     expect(num('2')).toBe('2')
+  })
+  const run = (date: string, run_step: number, clean: boolean | null) => ({ date, run_step, clean })
+  it('counts clean runs in a row at the last step, skipping undecided ones', () => {
+    const s = ladderStatus([run('2026-11-18', 4, null), run('2026-11-14', 4, true), run('2026-11-11', 4, true), run('2026-11-07', 3, true)], null)
+    expect(s.cleanInARow).toBe(2)
+    expect(s.last?.run_step).toBe(4)
+    expect(s.recent.map((r) => r.date)).toEqual(['2026-11-07', '2026-11-11', '2026-11-14', '2026-11-18'])
+  })
+  it('stops at a run that was not clean', () => {
+    expect(ladderStatus([run('2026-11-18', 4, true), run('2026-11-14', 4, false)], null).cleanInARow).toBe(1)
+    expect(ladderStatus([], null).last).toBeNull()
+  })
+})
+
+describe('which check-in is due', () => {
+  it('asks the morning from the start of the day, the evening from 18:00', () => {
+    expect(dueCheckIns('2026-11-19', '2026-11-19', 7)).toEqual({ morning: 'now', evening: 'later' })
+    expect(dueCheckIns('2026-11-19', '2026-11-19', 19)).toEqual({ morning: 'now', evening: 'now' })
+    expect(dueCheckIns('2026-11-19', '2026-11-19', 1)).toEqual({ morning: 'now', evening: 'now' })
+    expect(dueCheckIns('2026-11-18', '2026-11-19', 7)).toEqual({ morning: 'fill-in', evening: 'fill-in' })
+    expect(dueCheckIns('2026-11-20', '2026-11-19', 7)).toEqual({ morning: 'none', evening: 'none' })
+  })
+})
+
+describe('the app day', () => {
+  it('starts at 04:00', () => {
+    expect(appDay(new Date(2026, 10, 19, 0, 30))).toBe('2026-11-18')
+    expect(appDay(new Date(2026, 10, 19, 4, 0))).toBe('2026-11-19')
+    expect(daysBetween('2026-10-24', '2026-10-26')).toBe(2) // across the summer-time change
+  })
+})
+
+describe('area summary and headline', () => {
+  const s = (date: string, score: number) => ({ date, body_area: 'arch', timing: 'next_morning', score })
+  it('shows the worse of the week and the latest answer', () => {
+    const list = [s('2026-11-13', 2), s('2026-11-14', 0), s('2026-11-15', 0), s('2026-11-16', 8)]
+    const a = areaSummary(list, 'arch', '2026-11-16')
+    expect(a.typical).toBe(3) // (2 + 0 + 0 + 8) / 4 = 2.5 → 3
+    expect(a.latest).toEqual({ date: '2026-11-16', score: 8 })
+    expect(a.worst).toBe(8)
+    expect(a.badDays).toBe(2)
+  })
+  it('says nothing with fewer than 3 answers', () => {
+    expect(areaSummary([s('2026-11-16', 0)], 'arch', '2026-11-16').typical).toBeNull()
+  })
+  it('writes one plain sentence', () => {
+    expect(headline({ arch: 'same', neck: 'worse', hands: 'same' })).toBe('Neck worse than the week before. Arch and hands about the same.')
+    expect(headline({ arch: 'none', neck: 'none', hands: 'none' })).toBe('Not enough check-ins yet to compare weeks.')
+  })
+})
+
+describe('heel-raise tests', () => {
+  it('groups results per day and compares the right with the left', () => {
+    const days = testDays([
+      { date: '2026-10-26', side: 'R', value: 17 },
+      { date: '2026-09-17', side: 'L', value: 21 },
+      { date: '2026-10-26', side: 'L', value: 23 },
+      { date: '2026-09-17', side: 'R', value: 12 },
+    ])
+    expect(days).toEqual([
+      { date: '2026-09-17', L: 21, R: 12 },
+      { date: '2026-10-26', L: 23, R: 17 },
+    ])
+    expect(rightOfLeft(days[1])).toBe(74)
   })
 })

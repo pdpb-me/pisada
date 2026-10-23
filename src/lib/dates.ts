@@ -1,6 +1,5 @@
 // Dates are stored as plain 'YYYY-MM-DD' in the phone's local time zone,
 // so "today" means today where you are, not in UTC.
-import { now } from '@/lib/clock'
 
 export function toISODate(d: Date) {
   const y = d.getFullYear()
@@ -9,28 +8,39 @@ export function toISODate(d: Date) {
   return `${y}-${m}-${day}`
 }
 
-export function todayISO() {
-  return toISODate(now())
-}
-
-// 'Wednesday 14 October'
-export function longDate(iso: string) {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
-}
+// Noon avoids summer-time edges when counting days
+const noon = (iso: string) => new Date(`${iso}T12:00:00`)
 
 export function addDays(iso: string, days: number) {
-  const d = new Date(`${iso}T12:00:00`)
+  const d = noon(iso)
   d.setDate(d.getDate() + days)
   return toISODate(d)
 }
 
+// Whole days from one date to another (negative if `to` is earlier)
+export function daysBetween(from: string, to: string) {
+  return Math.round((noon(to).getTime() - noon(from).getTime()) / 86_400_000)
+}
+
 // Monday to Sunday of the week that contains this date
 export function weekOf(iso: string) {
-  const d = new Date(`${iso}T12:00:00`)
-  const monday = addDays(iso, -((d.getDay() + 6) % 7))
+  const monday = addDays(iso, -((noon(iso).getDay() + 6) % 7))
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+}
+
+export const mondayOf = (iso: string) => weekOf(iso)[0]
+
+// 'YYYY-MM' moved by whole months
+export function shiftMonth(month: string, by: number) {
+  const d = noon(`${month}-01`)
+  d.setMonth(d.getMonth() + by)
+  return toISODate(d).slice(0, 7)
+}
+
+// The app's day starts at 04:00: at 00:30 it's still "today" (the evening check-in
+// belongs to the day that's ending), and the morning starts with the first steps.
+export const DAY_STARTS_AT = 4
+
+export function appDay(at: Date) {
+  return toISODate(new Date(at.getTime() - DAY_STARTS_AT * 3_600_000))
 }
