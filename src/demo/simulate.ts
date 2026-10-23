@@ -56,7 +56,7 @@ const TEMPLATE: Record<Kind, { title: string; instructions: string; exercises: s
   },
   tendon: {
     title: 'Arch strength',
-    instructions: 'Heel raises 3 × 12 slow, right side +1 set. Heel-raised holds 4 × 30 s. Pain ≤ 3/10 is OK.',
+    instructions: 'Heel raises 3 × 12 slow, right side +1 set. Heel-raised holds 4 × 30 s. Mild is OK; stop above Mild.',
     exercises: ['ball_squeeze_heel_raise', 'sl_heel_raise_step', 'sl_heel_hold_towel'],
     video_ids: ['CMD0zoHT1AI'],
   },
@@ -68,7 +68,7 @@ const TEMPLATE: Record<Kind, { title: string; instructions: string; exercises: s
   },
   run: {
     title: 'Run',
-    instructions: 'Flat route, easy pace. Stop if the arch goes above 3/10.',
+    instructions: 'Flat route, easy pace. Stop if the arch goes above Mild.',
     exercises: [],
     video_ids: [],
   },
@@ -86,7 +86,7 @@ const TEMPLATE: Record<Kind, { title: string; instructions: string; exercises: s
   },
   test: {
     title: 'Heel-raise test',
-    instructions: 'Single-leg heel raises to fatigue: left first, then right. Count clean reps. Stop if the arch goes above 3/10.',
+    instructions: 'Single-leg heel raises to fatigue: left first, then right. Count clean reps. Stop if the arch goes above Mild.',
     exercises: ['sl_heel_raise_test'],
     video_ids: [],
   },
@@ -107,12 +107,72 @@ const STEP_BY_WEEK = [1, 2, 2, 3, 3, 3, 4, 3, 4, 5, null, 4]
 const BLOCK_BY_WEEK = (w: number) => (w < 4 ? '2026-09 month1' : w < 9 ? '2026-10 month2' : '2026-11 month3')
 
 export const RUN_STEPS: Omit<Tables<'run_steps'>, 'id' | 'created_at' | 'user_id'>[] = [
-  { step: 1, label: '6 × (2′ jog / 2′ walk)', reps: 6, run_min: 2, walk_min: 2, total_run_min: 12, warmup_min: 5, cooldown_min: 3, block: '2026-09 month1' },
-  { step: 2, label: '5 × (3′ jog / 2′ walk)', reps: 5, run_min: 3, walk_min: 2, total_run_min: 15, warmup_min: 5, cooldown_min: 3, block: '2026-09 month1' },
-  { step: 3, label: '4 × (5′ jog / 2′ walk)', reps: 4, run_min: 5, walk_min: 2, total_run_min: 20, warmup_min: 5, cooldown_min: 3, block: '2026-09 month1' },
-  { step: 4, label: '3 × (7′ jog / 1,5′ walk)', reps: 3, run_min: 7, walk_min: 1.5, total_run_min: 21, warmup_min: 5, cooldown_min: 3, block: '2026-09 month1' },
-  { step: 5, label: '3 × (8′ jog / 1′ walk)', reps: 3, run_min: 8, walk_min: 1, total_run_min: 24, warmup_min: 5, cooldown_min: 3, block: '2026-09 month1' },
-  { step: 6, label: '2 × (12′ jog / 2′ walk)', reps: 2, run_min: 12, walk_min: 2, total_run_min: 24, warmup_min: 5, cooldown_min: 3, block: '2026-11 month3' },
+  {
+    step: 1,
+    label: '6 × (2′ jog / 2′ walk)',
+    reps: 6,
+    run_min: 2,
+    walk_min: 2,
+    total_run_min: 12,
+    warmup_min: 5,
+    cooldown_min: 3,
+    block: '2026-09 month1',
+  },
+  {
+    step: 2,
+    label: '5 × (3′ jog / 2′ walk)',
+    reps: 5,
+    run_min: 3,
+    walk_min: 2,
+    total_run_min: 15,
+    warmup_min: 5,
+    cooldown_min: 3,
+    block: '2026-09 month1',
+  },
+  {
+    step: 3,
+    label: '4 × (5′ jog / 2′ walk)',
+    reps: 4,
+    run_min: 5,
+    walk_min: 2,
+    total_run_min: 20,
+    warmup_min: 5,
+    cooldown_min: 3,
+    block: '2026-09 month1',
+  },
+  {
+    step: 4,
+    label: '3 × (7′ jog / 1.5′ walk)',
+    reps: 3,
+    run_min: 7,
+    walk_min: 1.5,
+    total_run_min: 21,
+    warmup_min: 5,
+    cooldown_min: 3,
+    block: '2026-09 month1',
+  },
+  {
+    step: 5,
+    label: '3 × (8′ jog / 1′ walk)',
+    reps: 3,
+    run_min: 8,
+    walk_min: 1,
+    total_run_min: 24,
+    warmup_min: 5,
+    cooldown_min: 3,
+    block: '2026-09 month1',
+  },
+  {
+    step: 6,
+    label: '2 × (12′ jog / 2′ walk)',
+    reps: 2,
+    run_min: 12,
+    walk_min: 2,
+    total_run_min: 24,
+    warmup_min: 5,
+    cooldown_min: 3,
+    block: '2026-11 month3',
+  },
 ]
 
 // Public YouTube videos (titles as on YouTube); the notes and flags are the coach's
@@ -161,19 +221,24 @@ const VIDEOS: Omit<Tables<'videos'>, 'user_id' | 'created_at'>[] = [
 // What the coach wrote at each weekly check-in (week_start = the Monday it plans)
 const REVIEWS: Record<number, { summary: string; decisions: string }> = {
   1: {
-    summary: 'First week: 11 of 14 sessions done. Arch mornings Mild on 4 days, None on 2. Both runs clean. Neck mostly None, Mild after the longer rides. The heel-raise test was skipped: no problem.',
+    summary:
+      'First week: 11 of 14 sessions done. Arch mornings Mild on 4 days, None on 2. Both runs clean. Neck mostly None, Mild after the longer rides. The heel-raise test was skipped: no problem.',
     decisions: 'Up to step 2: two clean runs in a row. Same plan otherwise. Heel-raise test moved to Thursday next week.',
   },
   2: {
-    summary: 'Good week. Wednesday’s run clean; Saturday’s run had a small niggle (Mild) that was still there on Sunday morning. Neck calm. Micro-dose done or partly on 5 days.',
+    summary:
+      'Good week. Wednesday’s run clean; Saturday’s run had a small niggle (Mild) that was still there on Sunday morning. Neck calm. Micro-dose done or partly on 5 days.',
     decisions: 'Hold step 2: the niggle lingered. Test on Thursday instead of Balance & hips.',
   },
   3: {
-    summary: 'Test: left 21, right 12 reps. The right side is clearly weaker, as expected. Two clean runs at step 2. Arch mornings Mild or None all week.',
-    decisions: 'Up to step 3. Right side keeps +1 set. Hut trip at the weekend: two hike days instead of Saturday’s run and Sunday’s mobility. Walk the descents slowly.',
+    summary:
+      'Test: left 21, right 12 reps. The right side is clearly weaker, as expected. Two clean runs at step 2. Arch mornings Mild or None all week.',
+    decisions:
+      'Up to step 3. Right side keeps +1 set. Hut trip at the weekend: two hike days instead of Saturday’s run and Sunday’s mobility. Walk the descents slowly.',
   },
   4: {
-    summary: 'Wednesday’s run at step 3 was clean. The hut trip went well: arch Mild on Sunday morning, no worse. The micro-dose was missed on both trip days: expected.',
+    summary:
+      'Wednesday’s run at step 3 was clean. The hut trip went well: arch Mild on Sunday morning, no worse. The micro-dose was missed on both trip days: expected.',
     decisions: 'Stay on step 3. New block (month 2) from Monday: same structure.',
   },
   5: {
@@ -181,28 +246,35 @@ const REVIEWS: Record<number, { summary: string; decisions: string }> = {
     decisions: 'Restart gently: stay on step 3, first run on Wednesday only if you feel well. No test this week.',
   },
   6: {
-    summary: 'Back after being sick: 2 clean runs at step 3. Some check-ins missed early in the week and logged a day late, which is fine. Arch mornings mostly Mild.',
+    summary:
+      'Back after being sick: 2 clean runs at step 3. Some check-ins missed early in the week and logged a day late, which is fine. Arch mornings mostly Mild.',
     decisions: 'Up to step 4. Keep the neck micro-dose short: 3 minutes is enough on busy mornings.',
   },
   7: {
-    summary: 'Arch flare-up: Wednesday’s run at step 4 was not clean (Moderate during), then Moderate and Severe mornings on Thursday and Friday. Saturday’s run was skipped: good call.',
+    summary:
+      'Arch flare-up: Wednesday’s run at step 4 was not clean (Moderate during), then Moderate and Severe mornings on Thursday and Friday. Saturday’s run was skipped: good call.',
     decisions: 'Down to step 3. Tendon work stays, slower and with less range. Move sessions yourself if the arch needs an extra rest day.',
   },
   8: {
-    summary: 'Flare settled: arch Mild from Tuesday, None on Saturday. Two clean runs at step 3 (one moved to Thursday). Pilates moved with the teacher.',
+    summary:
+      'Flare settled: arch Mild from Tuesday, None on Saturday. Two clean runs at step 3 (one moved to Thursday). Pilates moved with the teacher.',
     decisions: 'Back up to step 4. Heel-raise test on Monday.',
   },
   9: {
-    summary: 'Test: left 23, right 17 reps. Right side up from 12 in September. Two clean runs at step 4. Neck Mild on 3 evenings, all after long rides.',
-    decisions: 'New block (month 3) from Monday. Step 5 for Wednesday’s run. Step 6 is now in the ladder. Holiday from Saturday 7 November: no plan until you are back.',
+    summary:
+      'Test: left 23, right 17 reps. Right side up from 12 in September. Two clean runs at step 4. Neck Mild on 3 evenings, all after long rides.',
+    decisions:
+      'New block (month 3) from Monday. Step 5 for Wednesday’s run. Step 6 is now in the ladder. Holiday from Saturday 7 November: no plan until you are back.',
   },
   10: {
-    summary: 'A heavy bike week (rain detours, 35–45 min rides): neck Moderate on 3 evenings and the hands tingled on 4. The run at step 5 was clean.',
+    summary:
+      'A heavy bike week (rain detours, 35–45 min rides): neck Moderate on 3 evenings and the hands tingled on 4. The run at step 5 was clean.',
     decisions: 'Enjoy the holiday: no plan this week. Walk and hike as you like. We restart on Monday 16.',
   },
   11: {
     summary: 'Welcome back. 9 days without the app: hikes and walks on the watch, no check-ins. That’s fine.',
-    decisions: 'Restart at step 4, not 5, after the break. Heel-raise test on Thursday. Try the shorter bike route on two days to see if the neck likes it.',
+    decisions:
+      'Restart at step 4, not 5, after the break. Heel-raise test on Thursday. Try the shorter bike route on two days to see if the neck likes it.',
   },
 }
 
@@ -210,7 +282,7 @@ const REVIEWS: Record<number, { summary: string; decisions: string }> = {
 
 type Ctx = { r: () => number; db: Db; week: number; dow: number; date: string }
 
-const pick = <T,>(r: () => number, xs: readonly T[]) => xs[Math.floor(r() * xs.length)]
+const pick = <T>(r: () => number, xs: readonly T[]) => xs[Math.floor(r() * xs.length)]
 const between = (r: () => number, lo: number, hi: number) => Math.round(lo + r() * (hi - lo))
 
 const COMMENTS: Partial<Record<Kind, string[]>> = {
@@ -265,6 +337,7 @@ export function buildWorld(seed = 7): Db {
     [W(5, 5)]: { status: 'skipped', clean: null, pain: 0 },
     [W(7, 2)]: { status: 'partial', clean: false, pain: 5 },
     [W(7, 5)]: { status: 'skipped', clean: null, pain: 0 },
+    [W(10, 2)]: { status: 'done', clean: null, pain: 0 }, // clean never answered (the demo opens the next morning)
     [W(12, 2)]: { status: 'done', clean: null, pain: 2 }, // clean not decided yet: asked next morning
   }
 
@@ -370,9 +443,20 @@ export function buildWorld(seed = 7): Db {
           elevation_m: between(r, 500, 1200),
           at: '09:30',
         })
-      else watch(ctx, id, 'walk', between(r, 2400, 5400), { distance_m: between(r, 3000, 6500), hr_avg: between(r, 90, 104), load: between(r, 6, 14), at: '11:00' })
+      else
+        watch(ctx, id, 'walk', between(r, 2400, 5400), {
+          distance_m: between(r, 3000, 6500),
+          hr_avg: between(r, 90, 104),
+          load: between(r, 6, 14),
+          at: '11:00',
+        })
     } else if (!sick(date) && r() < 0.22) {
-      watch(ctx, id, 'walk', between(r, 1800, 3200), { distance_m: between(r, 2200, 4000), hr_avg: between(r, 88, 102), load: between(r, 4, 9), at: '13:10' })
+      watch(ctx, id, 'walk', between(r, 1800, 3200), {
+        distance_m: between(r, 2200, 4000),
+        hr_avg: between(r, 88, 102),
+        load: between(r, 4, 9),
+        at: '13:10',
+      })
     } else if (sick(date) && dow === 6) {
       watch(ctx, id, 'walk', 1250, { distance_m: 1400, hr_avg: 92, load: 2, at: '16:00' })
     }
@@ -410,7 +494,12 @@ export function buildWorld(seed = 7): Db {
         : p.slot === 'am'
           ? at(date, hm(7, between(r, 35, 58)))
           : at(date, hm(19, between(r, 5, 59)))
-      const comment = status !== 'skipped' && r() < 0.18 ? pick(r, COMMENTS[p.kind as Kind] ?? ['']) || null : sick(date) && status === 'skipped' && r() < 0.4 ? 'Flu, stayed in bed' : null
+      const comment =
+        status !== 'skipped' && r() < 0.18
+          ? pick(r, COMMENTS[p.kind as Kind] ?? ['']) || null
+          : sick(date) && status === 'skipped' && r() < 0.4
+            ? 'Flu, stayed in bed'
+            : null
       const logId = id('log')
       db.session_logs.push({ id: logId, plan_session_id: p.id, status, comment, logged_at: loggedAt, user_id: DEMO_USER })
 
@@ -450,11 +539,13 @@ export function buildWorld(seed = 7): Db {
         ranToday = true
         const o = RUN_OUTCOME[date]
         const stepN = p.run_step ?? 1
-        db.activities.push(activity(id('run'), date, 'run', 'manual', loggedAt, {
-          plan_session_id: p.id,
-          run_step: stepN,
-          clean: o ? o.clean : true,
-        }))
+        db.activities.push(
+          activity(id('run'), date, 'run', 'manual', loggedAt, {
+            plan_session_id: p.id,
+            run_step: stepN,
+            clean: o ? o.clean : true,
+          }),
+        )
         // the watch copy, except once (watch left at home: week 2, Wednesday)
         if (date !== W(2, 2)) {
           const st = RUN_STEPS.find((s) => s.step === stepN)!

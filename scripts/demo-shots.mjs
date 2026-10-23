@@ -40,7 +40,7 @@ export const SHOTS = [
   ['04-session-neck', 'today', [wait(400), closeSheets, wait(300), text('Neck micro-dose'), wait(400)]],
   ['05-log-drawer', 'ordinary', [wait(400), closeSheets, wait(300), text('Run A'), wait(300), role('button', /Log session|Edit/), wait(500)]],
   ['06-exercise', 'today', [wait(400), closeSheets, wait(300), text('Neck micro-dose'), wait(300), text('Chin nod'), wait(400)]],
-  ['07-test-day', 'today', [wait(400), closeSheets, wait(300), text('Heel-raise test'), wait(400)]],
+  ['07-test-day', 'test-day', [wait(400), closeSheets, wait(300), text('Heel-raise test'), wait(400)]],
   ['08-evening', 'bike', [wait(800)]],
   ['09-progress', 'today', [wait(400), closeSheets, wait(300), role('button', 'Progress'), wait(500)]],
   ['10-progress-scrolled', 'today', [wait(400), closeSheets, wait(300), role('button', 'Progress'), wait(500), swipeUp, wait(300)]],

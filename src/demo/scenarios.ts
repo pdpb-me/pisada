@@ -8,7 +8,13 @@ const W = (w: number, dow: number) => addDays(FIRST_MONDAY, (w - 1) * 7 + dow)
 
 // Moments worth visiting (local time). The first one is where the demo opens.
 export const SCENARIOS: Scenario[] = [
-  { id: 'today', title: 'An ordinary Thursday', about: 'Week 12: test day; yesterday’s run waits for “clean?”', at: `${W(12, 3)}T07:40` },
+  {
+    id: 'today',
+    title: 'A Thursday morning',
+    about: 'Week 10, 06:55: a heavy bike week; yesterday’s run waits for “clean?”',
+    at: `${W(10, 3)}T06:55`,
+  },
+  { id: 'test-day', title: 'Test day', about: 'Week 12, Thursday: the heel-raise test, back after a holiday', at: `${W(12, 3)}T07:40` },
   { id: 'ordinary', title: 'An ordinary week', about: 'Week 2, Wednesday evening, run day', at: `${W(2, 2)}T19:30` },
   { id: 'trip', title: 'Back from a hut trip', about: 'Week 4, Monday: the weekend’s hikes, routine missed', at: `${W(5, 0)}T07:30` },
   { id: 'sick', title: 'A sick week', about: 'Week 5, Friday: almost everything skipped', at: `${W(5, 4)}T20:30` },

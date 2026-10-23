@@ -35,9 +35,7 @@ export function DemoBar() {
           <div className="mx-auto flex min-h-0 w-full max-w-md flex-col">
             <DrawerHeader>
               <DrawerTitle>Demo</DrawerTitle>
-              <DrawerDescription>
-                Made-up data, kept only in this browser. It’s now {moment(now())}.
-              </DrawerDescription>
+              <DrawerDescription>Made-up data, kept only in this browser. It’s now {moment(now())}.</DrawerDescription>
             </DrawerHeader>
             <div className="flex min-h-0 flex-col gap-5 overflow-y-auto px-4 pb-6">
               <div className="grid grid-cols-3 gap-2">
@@ -52,8 +50,7 @@ export function DemoBar() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Moving on adds what the coach and the watch would have added. Your own logs stay yours: nothing fills in
-                by itself.
+                Moving on adds what the coach and the watch would have added. Your own logs stay yours: nothing fills in by itself.
               </p>
               <div className="flex flex-col gap-1">
                 <span className="text-sm font-medium">Jump to a moment</span>
