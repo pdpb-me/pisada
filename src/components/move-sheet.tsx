@@ -47,7 +47,7 @@ function MoveForm({
   const [date, setDate] = useState(session.date)
   const [slot, setSlot] = useState<'am' | 'pm'>(session.slot === 'am' ? 'am' : 'pm')
   const [moving, setMoving] = useState(false)
-  const start = session.date < today ? today : session.date
+  const start = today
   const chips = Array.from({ length: 7 }, (_, i) => addDays(start, i))
   const changed = date !== session.date || slot !== session.slot
 

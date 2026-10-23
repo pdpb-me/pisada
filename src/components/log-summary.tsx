@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils'
 
 const dot = '·'
 
-// What was logged, in one short line: "Arch ● Mild · L 22 · R 15 reps · Step 3, clean · 33 min · 4.7 km".
+// What was logged, in one short line: "Arch ● Mild · L 22 · R 15 reps · Step 3, clean · 33 min · 4.7 km"
+// (the watch's time and distance only in the day's plan: the session screen has its own card).
 // compact (in the day's plan): the status shows in the round mark, so the word is left out,
 // and a missing pain answer gets a gentle "add" hint.
 export function LogSummary({ session, compact = false }: { session: DaySession; compact?: boolean }) {
@@ -46,7 +47,7 @@ export function LogSummary({ session, compact = false }: { session: DaySession; 
         {run.clean != null && (run.clean ? ', clean' : ', not clean')}
       </span>,
     )
-  if (session.watch)
+  if (compact && session.watch)
     parts.push(
       <span key="w" className="whitespace-nowrap">
         {[duration(session.watch.duration_s), session.watch.distance_m ? km(session.watch.distance_m) : null].filter(Boolean).join(' · ')}

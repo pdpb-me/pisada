@@ -10,6 +10,7 @@ import { CardSkeleton, EmptyNote, ErrorCard } from '@/components/states'
 import { WeekStrip } from '@/components/week-strip'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { write } from '@/data/store'
 import type { DayDot } from '@/data/types'
 import { useCheckIns } from '@/hooks/use-check-ins'
 import { useLastLog, useLastRunStep, useReview, useRunSteps, useWeekDots } from '@/hooks/use-data'
@@ -30,15 +31,14 @@ export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void 
   // the chosen day; null follows today (also when the app is reopened the next morning)
   const [picked, setPicked] = useState<string | null>(null)
   const date = picked ?? today
-  // the week shown in the strip: swiping or the arrows change it, the chosen day stays
-  const [stripMonday, setStripMonday] = useState<string | null>(null)
-  const monday = stripMonday ?? mondayOf(date)
+  // the strip shows the chosen day's week; swiping or the arrows go to the same weekday
+  // in the week before or after, so the strip and the page always agree
+  const monday = mondayOf(date)
   const days = weekOf(monday)
   // dots for the week before and after too: the strip shows them while it's dragged
   const week = useWeekDots(addDays(monday, -7), addDays(monday, 13))
   const choose = (d: string) => {
     setPicked(d === today ? null : d)
-    setStripMonday(null)
   }
 
   // key: a fresh day (and screen stack) per date, so the previous day never shows while loading
@@ -50,7 +50,7 @@ export function Today({ onDeepChange }: { onDeepChange: (deep: boolean) => void 
       days={days}
       dots={week.data ?? {}}
       onDate={choose}
-      onWeek={(dir) => setStripMonday(addDays(monday, dir * 7))}
+      onWeek={(dir) => choose(addDays(date, dir * 7))}
       onDeepChange={onDeepChange}
     />
   )
@@ -96,10 +96,12 @@ function Day({
       onComment: (comment) => day.setComment(s(), comment),
       onTest: (spec, side, value) => day.setTest(s(), spec, side, value),
       onMove: async (newDate, slot) => {
-        const ok = await day.moveSession(s(), newDate, slot)
+        const before = s()
+        const ok = await day.moveSession(before, newDate, slot)
         if (ok)
           toast(`Moved to ${longDate(newDate)}`, {
             action: newDate !== date ? { label: 'Go to day', onClick: () => onDate(newDate) } : undefined,
+            cancel: { label: 'Undo', onClick: () => void write.moveSession(before.id, before.date, before.slot) },
           })
         return ok
       },
@@ -140,7 +142,6 @@ function Day({
     )
   }
 
-  const stripWeekShown = days.includes(date)
   const subtitle = isToday ? longDate(date) : `${dayMonth(date)} · ${inDays(date, today)}`
 
   return (
@@ -150,8 +151,8 @@ function Day({
           <div className="flex min-w-0 flex-col">
             <h1 className="text-display font-bold">{isToday ? 'Today' : weekday(date)}</h1>
             <p className="text-sm text-muted-foreground">
-              {stripWeekShown ? subtitle : `Week of ${dayMonth(days[0])}`}
-              {(!isToday || !days.includes(today)) && (
+              {subtitle}
+              {!isToday && (
                 <>
                   {' · '}
                   <button
@@ -236,6 +237,7 @@ function TodayNotes({ today, dots, onDate }: { today: string; dots: Record<strin
   const yesterday = addDays(today, -1)
   const yCheckIns = useCheckIns(yesterday).checkIns
   const [hidden, setHidden] = useState(() => getPref('yesterday-hidden') === yesterday)
+  const [welcomed, setWelcomed] = useState(() => getPref('welcome-hidden') === today)
 
   const thisWeeksNote = review && review.week_start === mondayOf(today) ? review : null
   const away = lastLog && daysBetween(lastLog.date, today) >= 4 ? daysBetween(lastLog.date, today) : 0
@@ -251,9 +253,25 @@ function TodayNotes({ today, dots, onDate }: { today: string; dots: Record<strin
     <>
       {thisWeeksNote && <CoachNote review={thisWeeksNote} />}
       {away ? (
-        <EmptyNote title="Welcome back">
-          {away} days without the app. Past days stay as they are: no need to fill them in. Start with today.
-        </EmptyNote>
+        !welcomed && (
+          <EmptyNote
+            title="Welcome back"
+            action={
+              <Button
+                variant="ghost"
+                className="-mx-2 h-11 px-2 text-primary"
+                onClick={() => {
+                  setPref('welcome-hidden', today)
+                  setWelcomed(true)
+                }}
+              >
+                OK
+              </Button>
+            }
+          >
+            {away} days without the app. Past days stay as they are: no need to fill them in. Start with today.
+          </EmptyNote>
+        )
       ) : (
         lastLog &&
         !hidden &&

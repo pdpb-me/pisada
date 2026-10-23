@@ -8,7 +8,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
     {/* low, above the tab bar: near the thumb, never over a title or the back button */}
-    <Toaster position="bottom-center" offset={88} mobileOffset={{ bottom: 88 }} duration={3000} />
+    <Toaster position="bottom-center" offset={88} mobileOffset={{ bottom: 88 }} duration={3000} visibleToasts={1} />
   </StrictMode>,
 )
 

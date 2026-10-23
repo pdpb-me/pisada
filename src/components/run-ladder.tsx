@@ -66,6 +66,7 @@ export function LadderDrawer({
               return (
                 <div
                   key={s.step}
+                  ref={now ? (el) => el?.scrollIntoView({ block: 'center' }) : undefined}
                   aria-current={now ? 'step' : undefined}
                   className={cn('flex flex-col gap-0.5 rounded-xl px-3.5 py-3', now ? 'bg-card ring-2 ring-foreground' : 'bg-muted')}
                 >
