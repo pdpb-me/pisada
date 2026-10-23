@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- Pisada: a right footprint ("pisada"), the arch cut in on the inner side, on the app's
-       blue (--primary). The mark stays inside the central circle, so it also works as a
+       blue (the primary colour). The mark stays inside the central circle, so it also works as a
        maskable (cropped) Android icon. -->
   <rect width="512" height="512" fill="#006dc3"/>
   <g fill="#ffffff" transform="translate(256 256) scale(1.02) translate(-266 -290)">
