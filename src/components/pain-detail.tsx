@@ -13,9 +13,9 @@ import { TINGLING_LEVELS } from '@/lib/tingling'
 import { AREAS, areaSummary, average, compare, dailySeries, zoneText, type AreaId } from '@/lib/trends'
 import { cn } from '@/lib/utils'
 
-// Chart geometry (SVG units): plot from x 14 to 290, words on the right
+// Chart geometry (SVG units): plot from x 14 to 272, words on the right
 const X0 = 14
-const X1 = 290
+const X1 = 272
 // y for a 0–10 score: the plan's zones get equal room (None 210, Mild 150, Moderate 90, Unbearable 10)
 const yPain = (s: number) => (s <= 2 ? 210 - s * 30 : s <= 5 ? 150 - (s - 2) * 20 : 90 - (s - 5) * 16)
 const STROKE: Record<string, string> = { low: 'stroke-pain-low', mid: 'stroke-pain-mid', high: 'stroke-pain-high' }

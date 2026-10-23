@@ -30,13 +30,14 @@ export const checkInTiming = (area: CheckInArea) => (area === 'arch' ? 'next_mor
 export const WATCH_SPORT: Record<string, string> = { run: 'run', hike: 'hike' }
 export const watchSport = (kind: string) => WATCH_SPORT[kindOf(kind)] ?? null
 
-// The watch copy (source 'intervals', same date and sport) of each session that happened,
-// in order. Planned or skipped sessions get none. `watch` is the day's watch activities.
+// The watch copy (source 'intervals', same date and sport) of each session, in order.
+// Skipped sessions get none, so a watch run never lands on a run that didn't happen.
+// (An unlogged one gets it: the watch says it happened, a nudge to log it.)
 export function pairWatch<T extends { kind: string; status: string | null | undefined }>(sessions: T[], watch: WatchActivity[]) {
   const used = new Set<string>()
   return sessions.map((s) => {
     const sport = watchSport(s.kind)
-    if (!sport || !happened(s.status)) return null
+    if (!sport || s.status === 'skipped') return null
     const match = watch.find((w) => w.sport === sport && !used.has(w.id)) ?? null
     if (match) used.add(match.id)
     return match

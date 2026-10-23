@@ -1,7 +1,7 @@
 // The real backend: Pedro's Supabase project. Only this file and supabase-client.ts
 // talk to Supabase; the demo build swaps it out (see src/data/backend.ts).
 import type { Backend } from '@/data/api'
-import { checkInRow, checkInTiming, clearsOnStatus, happened, isRun, kindOf, pairWatch, WATCH_SPORT, watchSport } from '@/data/rules'
+import { checkInRow, checkInTiming, clearsOnStatus, isRun, kindOf, pairWatch, WATCH_SPORT, watchSport } from '@/data/rules'
 import { supabase } from '@/data/supabase-client'
 import type { CheckIns, DayDot, DaySession, Video, WatchActivity } from '@/data/types'
 import { now } from '@/lib/clock'
@@ -94,7 +94,7 @@ export const backend: Backend = {
         .order('created_at'),
     )
     const ids = [...new Set(data.flatMap((s) => s.video_ids))]
-    const recorded = data.some((s) => watchSport(s.kind) && happened(s.session_logs?.status))
+    const recorded = data.some((s) => watchSport(s.kind) && s.session_logs?.status !== 'skipped')
     const [videos, watchRows] = await Promise.all([
       ids.length
         ? supabase

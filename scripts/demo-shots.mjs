@@ -57,12 +57,25 @@ export const SHOTS = [
   ['21-run-session', 'ordinary', [wait(400), closeSheets, wait(300), text('Run A'), wait(500)]],
   ['22-moved', 'moved', [wait(400), closeSheets, wait(500)]],
   ['23-new-block', 'new-block', [wait(400), closeSheets, wait(500)]],
+  ['25-quick-log', 'today', [wait(400), closeSheets, (p) => p.getByRole('group', { name: /Log Neck/ }).getByText('Partly').click(), wait(600)]],
+  ['26-run-logged-sheet', 'ordinary', [wait(400), closeSheets, text('Run A'), wait(400), role('button', /Edit the log/), wait(600)]],
+  ['27-move-sheet', 'moved', [wait(400), closeSheets, text('Run A'), wait(400), role('button', 'Move'), wait(600)]],
+  ['28-test-session', 'test-day', [wait(400), closeSheets, text('Heel-raise test'), wait(600)]],
+  ['29-test-results', 'test', [wait(400), closeSheets, text('Heel-raise test'), wait(600)]],
+  ['30-coach-sheet', 'today', [wait(400), closeSheets, role('button', 'Read all'), wait(600)]],
+  ['31-flare-severe', 'flare', [wait(400), closeSheets, (p) => p.getByRole('radio', { name: 'Severe' }).first().click(), wait(600)]],
+  ['32-evening-due', 'bike', [wait(400), closeSheets, swipeUp, wait(400)]],
+  ['33-hands-detail', 'bike', [wait(400), closeSheets, role('button', 'Progress'), wait(500), role('button', /^Hands/), wait(500)]],
+  ['34-arch-detail-flare', 'flare', [wait(400), closeSheets, role('button', 'Progress'), wait(500), role('button', /^Arch/), wait(500)]],
+  ['35-hike-watch', 'trip', [wait(400), closeSheets, role('button', 'Previous week'), wait(400), role('button', /Sunday 27 September/), wait(400), text('Hut trip'), wait(600)]],
+  ['36-loading', 'today', [], '&latency=4000'],
+  ['37-skip-all-sick', 'sick', [wait(400), closeSheets, role('button', /Thursday 1 October/), wait(500)]],
   ['24-ladder', 'today', [wait(400), closeSheets, wait(300), role('button', 'Progress'), wait(500), text('Run ladder'), wait(600)]],
 ]
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? undefined })
 const failures = []
-for (const [name, scenario, steps] of SHOTS) {
+for (const [name, scenario, steps, extra = ''] of SHOTS) {
   if (only && !only.some((o) => name.includes(o))) continue
   const context = await browser.newContext({
     viewport: { width: 360, height: 800 },
@@ -76,7 +89,8 @@ for (const [name, scenario, steps] of SHOTS) {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   try {
-    await page.goto(`${base}?scenario=${scenario}&bar=0`, { waitUntil: 'networkidle' })
+    await page.goto(`${base}?scenario=${scenario}&bar=0${extra}`, { waitUntil: extra ? 'domcontentloaded' : 'networkidle' })
+    if (extra) await page.waitForTimeout(700)
     for (const step of steps) await step(page)
     await page.screenshot({ path: path.join(out, `${name}.png`) })
     if (errors.length) failures.push(`${name}: ${errors.join('; ')}`)
