@@ -7,7 +7,8 @@ import { Toaster } from '@/components/ui/sonner'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
-    <Toaster position="top-center" />
+    {/* low, above the tab bar: near the thumb, never over a title or the back button */}
+    <Toaster position="bottom-center" offset={88} mobileOffset={{ bottom: 88 }} duration={3000} />
   </StrictMode>,
 )
 
