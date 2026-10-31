@@ -1,6 +1,7 @@
 // "Sync now" in Activities: copies the last 7 days of watch activities from intervals.icu
 // into `activities`, as the logged-in user (their own JWT, so RLS applies: no service key).
-// Secrets (Supabase dashboard → Edge Functions → Secrets): INTERVALS_API_KEY, INTERVALS_ATHLETE_ID.
+// Secrets (Supabase dashboard → Edge Functions → Secrets): INTERVALS_API_KEY, INTERVALS_ATHLETE_ID,
+// SYNC_OWNER_USER_ID (the only login allowed to run it).
 // The daily GitHub Action does the same with scripts/sync-intervals.mjs.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { fetchActivities, lastDays, toRows } from '../_shared/intervals.js'
@@ -28,6 +29,9 @@ Deno.serve(async (req) => {
   })
   const { data: auth, error: authError } = await supabase.auth.getUser()
   if (authError || !auth.user) return json({ error: 'Not logged in' }, 401)
+
+  // One intervals.icu key means one person's watch: nobody else may copy it. No owner set: nobody can.
+  if (auth.user.id !== Deno.env.get('SYNC_OWNER_USER_ID')) return json({ error: 'Sync is only for the owner of the watch account.' }, 403)
 
   try {
     const list = await fetchActivities({

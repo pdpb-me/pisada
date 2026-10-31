@@ -62,7 +62,7 @@ Gemeas (repo `pdpb-me/gemeas`, folder `../gemeas`) is a separate app in the **sa
 - **One chat at a time changes the database.** Code can move in parallel; database changes can't. If another chat may be changing it, stop and ask.
 - **Backup before every database change.** Don't count on automatic backups on the free plan.
 - **Shared parts need Pedro's OK, and a check of both apps right after:** the exposed schemas list (it must always keep `public`), logins and users, the login email's text (it must name neither app), the free plan's storage limit, and server functions.
-- **Before any other login exists:** the `sync-intervals` Edge Function uses one intervals.icu key for whoever calls it, so restrict it to Pedro's account.
+- **Only Pedro can run "Sync now":** the `sync-intervals` Edge Function uses one intervals.icu key, so it refuses any login other than the secret `SYNC_OWNER_USER_ID`. Without that secret it refuses everyone.
 
 ## Design rules (see PLAN.md, "Design language")
 
