@@ -54,6 +54,16 @@ Vite 8 + React 19 + TypeScript + Tailwind 4 + shadcn/ui (Radix, style "Nova", ne
 - Pain: 5 words stored as 0/2/5/8/10 (`src/lib/pain.ts`); the arch is the **right** foot.
 - The run ladder lives in `run_steps`. The app **never auto-advances** the step. The planned step is `plan_sessions.run_step` (set by the coaching chat); `scripts/push-workouts.mjs` (in the sync-intervals Action) sends runs with a step to intervals.icu → the Suunto watch.
 
+## Sharing the database with Gemeas
+
+Gemeas (repo `pdpb-me/gemeas`, folder `../gemeas`) is a separate app in the **same Supabase project**: its tables are in the `gemeas` schema, Pisada's in `public`. Work on Gemeas in chats started from its folder. The Supabase connection can reach both schemas, so:
+
+- **From this repo, only touch `public`.** Never read or write the `gemeas` schema.
+- **One chat at a time changes the database.** Code can move in parallel; database changes can't. If another chat may be changing it, stop and ask.
+- **Backup before every database change.** Don't count on automatic backups on the free plan.
+- **Shared parts need Pedro's OK, and a check of both apps right after:** the exposed schemas list (it must always keep `public`), logins and users, the login email's text (it must name neither app), the free plan's storage limit, and server functions.
+- **Before any other login exists:** the `sync-intervals` Edge Function uses one intervals.icu key for whoever calls it, so restrict it to Pedro's account.
+
 ## Design rules (see PLAN.md, "Design language")
 
 - shadcn components first; theme tokens in `src/index.css` (`--pain-*`, `--status-*`, one accent `--primary`). The shadcn registry may be blocked in a cloud session: `ui/tabs.tsx` was written from the shadcn source on 23 Oct; re-sync it locally with `npx shadcn@latest add tabs --overwrite` when convenient.
