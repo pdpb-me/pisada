@@ -6,7 +6,7 @@
 //   PISADA_ANTHROPIC_KEY: the key from the Claude Console
 import Anthropic from 'npm:@anthropic-ai/sdk@1.3.0'
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { appMoment, decisionNotes, MAX_CHARS, MAX_TOOL_ROUNDS, MODEL, needsNewThread, prepareProposal, runTool, systemPrompt, TOOLS, userBlocks, visibleText, type Reader } from '../_shared/coach.ts'
+import { appMoment, changesSince, decisionNotes, MAX_CHARS, MAX_TOOL_ROUNDS, MODEL, needsNewThread, prepareProposal, runTool, systemPrompt, TOOLS, userBlocks, visibleText, type Reader } from '../_shared/coach.ts'
 
 declare const EdgeRuntime: { waitUntil(work: Promise<unknown>): void }
 
@@ -79,16 +79,21 @@ async function reply(userId: string, token: string, text: string, instructions: 
   let threadId = latest?.id as string
   let messages = history.map(({ role, content }) => ({ role, content }))
   let recent: { role: string; text: string }[] = []
+  let changes: string[] = []
   // A long conversation is sent again in full with every message: past this size, start a new one
   if (needsNewThread(latest, history.at(-1)?.created_at ?? null, fingerprint) || history.length >= MAX_THREAD_ROWS) {
     recent = check(await db.from('chat_messages').select('role, text').eq('user_id', userId).not('text', 'is', null).order('seq', { ascending: false }).limit(RECENT_MESSAGES)).reverse() as typeof recent
     threadId = check(await db.from('chat_threads').insert({ fingerprint, user_id: userId }).select('id').single()).id
     messages = []
+  } else if (history.length) {
+    // What changed outside this chat since the coach last wrote: its earlier look-ups may be old.
+    // Not on a new conversation: there is no earlier read to be wrong about.
+    changes = await changesSince(reader, history.at(-1)!.created_at)
   }
 
   const row = { thread_id: threadId, user_id: userId }
   const moment = appMoment()
-  const content = userBlocks(text, moment.label, recent, decisionNotes(decided))
+  const content = userBlocks(text, moment.label, recent, [...decisionNotes(decided), ...changes])
   const asked = check(await db.from('chat_messages').insert({ ...row, role: 'user', text, content }).select('id').single())
   messages.push({ role: 'user', content })
 

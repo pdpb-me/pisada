@@ -372,6 +372,7 @@ export function buildWorld(seed = 7): Db {
           run_step: null,
           block: BLOCK_BY_WEEK(w - 1),
           created_at: written,
+          updated_at: written,
           user_id: DEMO_USER,
           ...extra,
         })
@@ -398,6 +399,7 @@ export function buildWorld(seed = 7): Db {
       summary: text.summary,
       decisions: text.decisions,
       created_at: at(addDays(monday, -1), '18:00'),
+      updated_at: at(addDays(monday, -1), '18:00'),
       user_id: DEMO_USER,
     })
   }

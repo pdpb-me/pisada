@@ -5,6 +5,8 @@ import { PAIN_LEVELS, painLabel } from '@/lib/pain'
 import { TINGLING_LEVELS, tinglingLabel } from '@/lib/tingling'
 import {
   appMoment,
+  changeNotes,
+  changesSince,
   decisionNotes,
   EXERCISES,
   linesOf,
@@ -553,5 +555,75 @@ describe('found in review', () => {
   it('a day that is not on the calendar is not a date', () => {
     expect(() => period({ from: '2026-02-30', to: '2026-03-02' })).toThrow()
     expect(period({ from: '2028-02-29', to: '2028-03-02' })).toEqual({ from: '2028-02-29', to: '2028-03-02' })
+  })
+})
+
+describe('what changed outside the chat', () => {
+  const nothing = { sessions: [], note: false, logDays: [] }
+
+  it('says nothing when nothing changed', () => {
+    expect(changeNotes(nothing)).toEqual([])
+  })
+
+  it('names the days of changed sessions once each, in date order', () => {
+    expect(changeNotes({ ...nothing, sessions: [{ date: '2026-11-14' }, { date: '2026-11-10' }, { date: '2026-11-10' }] })).toEqual([
+      'The plan changed outside this chat since your last message (Tue 10 Nov, Sat 14 Nov): read those days again before you answer about them.',
+    ])
+  })
+
+  it('names the plan and the logs in one line', () => {
+    expect(changeNotes({ sessions: [{ date: '2026-11-10' }, { date: '2026-11-11' }, { date: '2026-11-14' }], note: false, logDays: ['2026-11-09'] })).toEqual([
+      'The plan changed outside this chat since your last message (Tue 10 Nov, Wed 11 Nov, Sat 14 Nov), and there are new logs (Mon 9 Nov): read those days again before you answer about them.',
+    ])
+  })
+
+  it('names at most 7 days', () => {
+    const sessions = Array.from({ length: 9 }, (_, i) => ({ date: `2026-11-${10 + i}` }))
+    const [line] = changeNotes({ ...nothing, sessions })
+    expect(line).toContain('(Tue 10 Nov, Wed 11 Nov, Thu 12 Nov, Fri 13 Nov, Sat 14 Nov, Sun 15 Nov, Mon 16 Nov and other days)')
+    expect(line).not.toContain('17 Nov')
+  })
+
+  it('has its own words for logs only, and for the weekly note', () => {
+    expect(changeNotes({ ...nothing, logDays: ['2026-11-09'] })).toEqual(['There are new logs since your last message (Mon 9 Nov): read those days again before you answer about them.'])
+    expect(changeNotes({ ...nothing, note: true })).toEqual(['The weekly note changed outside this chat since your last message: read it again before you answer about it.'])
+    expect(changeNotes({ sessions: [{ date: '2026-11-10' }], note: true, logDays: [] })).toEqual([
+      'The plan changed outside this chat since your last message (Tue 10 Nov), and the weekly note changed: read those days and the note again before you answer about them.',
+    ])
+  })
+
+  it('reads the changes since the last message with his own login, and only what it needs', async () => {
+    const { reader, asked } = tablesDb({
+      plan_sessions: [{ date: '2026-11-10' }],
+      reviews: [],
+      session_logs: [{ logged_at: '2026-11-09T22:40:00Z', plan_sessions: { date: '2026-11-09' } }],
+    })
+    expect(await changesSince(reader, '2026-11-09T22:28:00Z')).toEqual([
+      'The plan changed outside this chat since your last message (Tue 10 Nov), and there are new logs (Mon 9 Nov): read those days again before you answer about them.',
+    ])
+    expect(asked.map((a) => a.table)).toEqual(['plan_sessions', 'reviews', 'session_logs'])
+    for (const a of asked) expect(a.columns).not.toMatch(/raw|user_id|comment|\*/)
+  })
+
+  it('asks only for what is newer than the last message', async () => {
+    const { reader, asked } = fakeDb([])
+    expect(await changesSince(reader, '2026-11-09T22:28:00Z')).toEqual([])
+    expect(asked.map((a) => a.calls.find(([name]) => name === 'gt'))).toEqual([
+      ['gt', ['updated_at', '2026-11-09T22:28:00Z']],
+      ['gt', ['updated_at', '2026-11-09T22:28:00Z']],
+      ['gt', ['logged_at', '2026-11-09T22:28:00Z']],
+    ])
+  })
+
+  it('goes on without a note when the changes cannot be read', async () => {
+    const { reader } = fakeDb([], { message: 'inner secret' })
+    expect(await changesSince(reader, '2026-11-09T22:28:00Z')).toEqual([])
+  })
+
+  it('the guide tells the coach to read again before it answers about a day', () => {
+    const guide = systemPrompt('')
+    expect(guide).toContain('What you read earlier in this conversation can be out of date.')
+    expect(guide).toContain('read it again with your tools in this turn')
+    expect(guide).toContain('read the plan for that day again before you say it isn')
   })
 })

@@ -248,6 +248,7 @@ export type Database = {
           run_step: number | null
           slot: string
           title: string
+          updated_at: string
           user_id: string
           video_ids: string[]
         }
@@ -262,6 +263,7 @@ export type Database = {
           run_step: number | null
           slot: string
           title: string
+          updated_at?: string
           user_id?: string
           video_ids?: string[]
         }
@@ -276,6 +278,7 @@ export type Database = {
           run_step?: number | null
           slot?: string
           title?: string
+          updated_at?: string
           user_id?: string
           video_ids?: string[]
         }
@@ -287,6 +290,7 @@ export type Database = {
           decisions: string | null
           id: string
           summary: string | null
+          updated_at: string
           user_id: string
           week_start: string
         }
@@ -295,6 +299,7 @@ export type Database = {
           decisions?: string | null
           id?: string
           summary?: string | null
+          updated_at?: string
           user_id?: string
           week_start: string
         }
@@ -303,6 +308,7 @@ export type Database = {
           decisions?: string | null
           id?: string
           summary?: string | null
+          updated_at?: string
           user_id?: string
           week_start?: string
         }

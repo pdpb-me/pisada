@@ -22,6 +22,7 @@ const plan = (id: string, kind: string, date = '2026-11-19', extra: Partial<Db['
     run_step: kind === 'run' ? 3 : null,
     block: null,
     created_at: '2026-11-15T17:00:00Z',
+    updated_at: '2026-11-15T17:00:00Z',
     user_id: 'u',
     ...extra,
   })

@@ -126,6 +126,9 @@ run_steps         step, label, reps, run_min, walk_min, total_run_min,
                   warmup_min, cooldown_min, block   ← the run-walk ladder; steps 6+ added by the coaching chat
 
 reviews           id, week_start, summary, decisions      ← written by Claude at the weekly check-in
+
+plan_sessions and reviews also have updated_at (set by the database on every change):
+the coach in the app is told which days changed outside its chat.
 ```
 
 Every table also gets `user_id`, which is the column the RLS policies check.
