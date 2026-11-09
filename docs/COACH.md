@@ -6,6 +6,8 @@ You (Claude, in the claude.ai project "Pisada do Pedro") read and write Pedro's 
 - **Pedro's user id:** `8cbe648a-0d47-40f1-9a38-5cb26f37fd24`
 - **Time zone:** Europe (CET/CEST). All `date` columns are Pedro's local calendar date, `YYYY-MM-DD`.
 
+> **There are two coaches now (from 9 Nov).** This guide is for you, the claude.ai project. The app also has a **Coach tab**: Pedro chats there with a coach that reads the same tables and makes **proposals** he applies with one tap (they land in `plan_sessions` and `reviews`, like your writes). So a session or a weekly note you didn't write may come from there: read the plan before you change it, and don't touch the tables `coach_profiles`, `chat_threads`, `chat_messages` and `plan_proposals`.
+
 ## How to work with Pedro
 
 - **Who he is:** a mechanical engineer, not a developer. English is not his first language: write **short sentences and common words**, and explain any technical term the first time.

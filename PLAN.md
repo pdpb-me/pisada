@@ -233,4 +233,5 @@ A long cloud run built a **demo mode** (made-up data, no login: https://pdpb-me.
 | Where | What |
 |---|---|
 | **Claude Code** (repo) | Builds the app: schema, frontend, deploys, the GitHub Action |
+| **Coach tab in the app** (from 9 Nov; Claude API through the server function `pisada-coach-chat`) | Quick questions and small plan changes from the phone: the coach proposes, Pedro taps Apply |
 | **claude.ai project "Pisada do Pedro"** (with the Supabase connector) | Coaching: weekly check-ins, plan changes, program design, reading your data |

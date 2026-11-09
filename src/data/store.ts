@@ -19,6 +19,8 @@ export type Table =
   | 'reviews'
   | 'videos'
   | 'sync_status'
+  | 'chat_messages'
+  | 'plan_proposals'
 
 const listeners = new Set<(tables: Set<Table>) => void>()
 
@@ -49,6 +51,8 @@ export const READS = {
   oldestWatchDate: ['activities'],
   syncedAt: ['sync_status'],
   review: ['reviews'],
+  chatMessages: ['chat_messages'],
+  chatProposals: ['plan_proposals'],
 } satisfies Partial<Record<keyof Backend, Table[]>>
 
 // What each write touches
@@ -62,6 +66,7 @@ const WRITES = {
   saveCheckIn: ['symptoms'],
   saveClean: ['activities'],
   saveWeight: ['weights'],
+  decideProposal: ['plan_proposals', 'plan_sessions', 'symptoms', 'activities', 'tests', 'reviews'],
 } satisfies Partial<Record<keyof Backend, Table[]>>
 
 export const data = {
@@ -79,6 +84,9 @@ export const data = {
   oldestWatchDate: backend.oldestWatchDate,
   syncedAt: backend.syncedAt,
   review: backend.review,
+  coachAvailable: backend.coachAvailable,
+  chatMessages: backend.chatMessages,
+  chatProposals: backend.chatProposals,
 } satisfies Partial<Backend>
 
 // One write at a time
@@ -124,6 +132,7 @@ export const write = {
   saveCheckIn: save('saveCheckIn'),
   saveClean: save('saveClean'),
   saveWeight: save('saveWeight', 'Weight not saved'),
+  decideProposal: save('decideProposal', 'Proposal not saved'),
 }
 
 // "Sync now": how many activities came in, or null when it failed (after telling the user)
@@ -140,7 +149,22 @@ export function syncNow() {
   })
 }
 
+// A message to the coach. Not one of the writes above: the reply can take a while, and
+// nothing else should wait for it. Answers with what went wrong, in plain words, or null.
+export async function sendChat(text: string, onReply: (soFar: string) => void): Promise<string | null> {
+  try {
+    await backend.sendChat(text, onReply)
+    return null
+  } catch (e) {
+    console.error(e)
+    const offline = typeof navigator !== 'undefined' && !navigator.onLine
+    return offline ? 'You seem to be offline.' : e instanceof Error ? e.message : 'The message was not sent.'
+  } finally {
+    changed(['chat_messages', 'plan_proposals'])
+  }
+}
+
 // Everything may have changed elsewhere (the coach, the watch sync): reload all
 export function refreshAll() {
-  changed(['plan_sessions', 'session_logs', 'symptoms', 'activities', 'tests', 'weights', 'run_steps', 'reviews', 'videos', 'sync_status'])
+  changed(['plan_sessions', 'session_logs', 'symptoms', 'activities', 'tests', 'weights', 'run_steps', 'reviews', 'videos', 'sync_status', 'chat_messages', 'plan_proposals'])
 }

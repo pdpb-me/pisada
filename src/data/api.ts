@@ -1,4 +1,5 @@
 import type {
+  ChatMessage,
   CheckIns,
   DayDot,
   DaySession,
@@ -6,6 +7,7 @@ import type {
   LastLog,
   PainTarget,
   ProgressData,
+  Proposal,
   Review,
   RunChanges,
   RunStep,
@@ -44,6 +46,9 @@ export interface Backend {
   oldestWatchDate(): Promise<string | null>
   syncedAt(): Promise<string | null>
   review(weekStart: string): Promise<Review | null> // the coach's note for that week, or the latest before it
+  coachAvailable(): Promise<boolean> // does this login have the chat with the coach?
+  chatMessages(): Promise<ChatMessage[]> // oldest first
+  chatProposals(): Promise<Proposal[]> // oldest first
 
   // Writes
   setStatus(planSessionId: string, status: Status | null): Promise<void>
@@ -56,4 +61,6 @@ export interface Backend {
   saveClean(runLogId: string, clean: boolean | null): Promise<void>
   saveWeight(date: string, kg: number | null): Promise<void>
   syncNow(): Promise<{ count: number; synced_at: string }>
+  sendChat(text: string, onReply: (soFar: string) => void): Promise<void> // saves the message and the coach's reply, which arrives a piece at a time
+  decideProposal(id: string, apply: boolean): Promise<void> // all or nothing; if the plan changed in the meantime, nothing is applied and its status says so
 }

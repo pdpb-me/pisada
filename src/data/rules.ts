@@ -44,6 +44,9 @@ export function pairWatch<T extends { kind: string; status: string | null | unde
   })
 }
 
+// The longest message to the coach (the same as MAX_CHARS in supabase/functions/_shared/coach.ts)
+export const CHAT_MAX_CHARS = 2000
+
 // What the database accepts (see supabase/migrations): the demo checks the same
 export const LIMITS = {
   score: (n: number) => Number.isInteger(n) && n >= 0 && n <= 10,
@@ -51,6 +54,7 @@ export const LIMITS = {
   slot: (s: string) => s === 'am' || s === 'pm',
   step: (n: number) => Number.isInteger(n) && n >= 1,
   status: (s: string) => s === 'done' || s === 'partial' || s === 'skipped',
+  chat: (s: string) => s.trim().length > 0 && s.length <= CHAT_MAX_CHARS,
 }
 
 export function check(ok: boolean, what: string) {

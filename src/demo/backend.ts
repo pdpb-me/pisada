@@ -5,10 +5,11 @@ import { createMemoryBackend } from '@/demo/memory'
 import { demo } from '@/demo/state'
 
 export { DemoBar } from '@/demo/demo-bar'
+export const DemoCoachNotice: string | null = 'Demo: one written answer, not the real coach.'
 
 // ?latency=600 slows every read and write down, to see loading states
 const latency = Number(new URLSearchParams(location.search).get('latency') ?? 0) || 0
-const memory = createMemoryBackend(demo.db, { latencyMs: () => latency })
+const memory = createMemoryBackend(demo.db, { latencyMs: () => latency, replyPauseMs: 35 })
 
 const WRITES = new Set<keyof Backend>([
   'setStatus',

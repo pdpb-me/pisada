@@ -3,7 +3,7 @@
 // the same limits as the database (supabase/migrations). No network.
 import type { Backend } from '@/data/api'
 import { check, checkInRow, checkInTiming, clearsOnStatus, isRun, kindOf, LIMITS, pairWatch, WATCH_SPORT } from '@/data/rules'
-import type { CheckIns, DayDot, DaySession, WatchActivity } from '@/data/types'
+import type { ChatMessage, CheckIns, DayDot, DaySession, WatchActivity } from '@/data/types'
 import type { Db } from '@/demo/db'
 import { DEMO_USER } from '@/demo/db'
 import { now } from '@/lib/clock'
@@ -40,7 +40,11 @@ const blankActivity = {
   run_step: null,
 }
 
-export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => number } = {}): Backend {
+const DEMO_REPLY =
+  'This is the demo, so there is no real coach here. In the real app I read your plan, your logs and your check-ins, and I can propose changes to the plan: nothing changes until you tap Apply.'
+
+export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => number; replyPauseMs?: number } = {}): Backend {
+  const chat: ChatMessage[] = []
   // A pause like a real network's, so loading states can be seen (?latency=600)
   const wait = () => new Promise<void>((r) => setTimeout(r, options.latencyMs?.() ?? 0))
 
@@ -374,6 +378,39 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
       if (kg == null) d.weights = d.weights.filter((w) => w !== existing)
       else if (existing) existing.kg = kg
       else d.weights.push({ id: newId(), date, kg, created_at: stamp(), user_id: DEMO_USER })
+    },
+
+    // The demo has no coach behind it: one fixed answer, so the screen can be seen.
+    // Nothing is proposed, and the messages go when the page is reloaded.
+    async coachAvailable() {
+      return true
+    },
+
+    async chatMessages() {
+      await wait()
+      return structuredClone(chat)
+    },
+
+    async chatProposals() {
+      await wait()
+      return []
+    },
+
+    async sendChat(text, onReply) {
+      await wait()
+      check(LIMITS.chat(text), 'message')
+      chat.push({ id: newId(), role: 'user', text: text.trim(), created_at: stamp() })
+      // a piece at a time, like the real coach's reply
+      const words = DEMO_REPLY.split(/(?<=\s)/)
+      for (let i = 1; i <= words.length; i++) {
+        if (options.replyPauseMs) await new Promise((r) => setTimeout(r, options.replyPauseMs))
+        onReply(words.slice(0, i).join(''))
+      }
+      chat.push({ id: newId(), role: 'coach', text: DEMO_REPLY, created_at: stamp() })
+    },
+
+    async decideProposal() {
+      throw new Error('The demo has no proposals')
     },
 
     async syncNow() {

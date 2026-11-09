@@ -24,6 +24,19 @@ export function useReview(weekStart: string) {
   return useQuery(`review:${weekStart}`, READS.review, () => data.review(weekStart))
 }
 
+// false while loading, and if it can't be read: the tab just stays away
+export function useCoachAvailable(signedIn: boolean) {
+  return useQuery(`coach-available:${signedIn}`, [], async () => signedIn && data.coachAvailable()).data ?? false
+}
+
+export function useChatMessages() {
+  return useQuery('chat-messages', READS.chatMessages, () => data.chatMessages(), { keepPrevious: true })
+}
+
+export function useChatProposals() {
+  return useQuery('chat-proposals', READS.chatProposals, () => data.chatProposals(), { keepPrevious: true })
+}
+
 export function useProgress(today: string) {
   return useQuery(`progress:${today}`, READS.progress, () => data.progress(today), { keepPrevious: true })
 }

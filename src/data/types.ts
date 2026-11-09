@@ -43,6 +43,12 @@ export type CheckIns = {
 
 export type NextRun = { date: string; run_step: number | null; title: string }
 
+// One message in the chat with the coach
+export type ChatMessage = { id: string; role: 'user' | 'coach'; text: string; created_at: string }
+
+// What the coach proposes: it changes the plan only if Pedro applies it
+export type Proposal = { id: string; summary: string; lines: string[]; status: string; created_at: string }
+
 export type TrendSymptom = { date: string; body_area: string; timing: string; score: number }
 
 export type ProgressData = {

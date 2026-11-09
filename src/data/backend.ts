@@ -3,5 +3,8 @@
 // demo never ships or calls Supabase.
 export { backend } from '@/data/supabase'
 
+// Said at the top of the demo's chat; the real app has none
+export const DemoCoachNotice: string | null = null
+
 // The demo's control bar; the real app has none
 export const DemoBar: React.ComponentType | null = null
