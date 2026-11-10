@@ -14,6 +14,7 @@ import type {
   Status,
   TestRow,
   TestTarget,
+  VideoRating,
   WatchActivity,
 } from '@/data/types'
 
@@ -56,6 +57,7 @@ export interface Backend {
   setRun(planSessionId: string, changes: RunChanges): Promise<void>
   setComment(planSessionId: string, comment: string | null): Promise<void>
   setTest(planSessionId: string, spec: TestTarget, side: string, value: number | null): Promise<void>
+  setRating(planSessionId: string, ytId: string, rating: VideoRating | null): Promise<void> // one per session and video; null removes it
   moveSession(planSessionId: string, date: string, slot: string): Promise<void>
   saveCheckIn(date: string, area: 'arch' | EveningArea, score: number | null): Promise<void>
   saveClean(runLogId: string, clean: boolean | null): Promise<void>

@@ -105,7 +105,7 @@ describe('what the coach can read', () => {
       reader,
       '2026-11-04',
     )
-    expect([...new Set(asked.map((a) => a.table))].sort()).toEqual(['plan_sessions', 'reviews', 'run_steps', 'videos'])
+    expect([...new Set(asked.map((a) => a.table))].sort()).toEqual(['plan_sessions', 'reviews', 'run_steps', 'video_feedback', 'videos'])
     for (const a of asked) {
       expect(a.columns).not.toContain('*')
       expect(a.columns).not.toContain('user_id')
@@ -223,6 +223,31 @@ describe('what the coach can read', () => {
     expect(calls.lte).toEqual(['duration_s', 900])
     expect(calls.limit).toEqual([20])
   })
+
+  it('tells how often he did each video and his last rating', async () => {
+    const { reader, asked } = tablesDb({
+      videos: [
+        { yt_id: 'v1', title: 'Hips' },
+        { yt_id: 'v2', title: 'Neck' },
+      ],
+      video_feedback: [
+        { yt_id: 'v1', rating: 'drop', date: '2026-11-08' },
+        { yt_id: 'v1', rating: 'keep', date: '2026-11-01' },
+      ],
+      plan_sessions: [
+        { video_ids: ['v1'], session_logs: { status: 'done' } },
+        { video_ids: ['v1', 'v2'], session_logs: [{ status: 'partial' }] },
+        { video_ids: ['v1'], session_logs: { status: 'skipped' } },
+        { video_ids: ['v2'], session_logs: null },
+      ],
+    })
+    const found = JSON.parse((await runTool('search_videos', {}, reader)).content)
+    expect(found).toEqual([
+      { yt_id: 'v1', title: 'Hips', times_done: 2, last_rating: { rating: 'drop', date: '2026-11-08' } },
+      { yt_id: 'v2', title: 'Neck', times_done: 1, last_rating: null },
+    ])
+    for (const a of asked) expect(a.columns).not.toContain('*')
+  })
 })
 
 describe('proposals', () => {
@@ -238,6 +263,48 @@ describe('proposals', () => {
   const reader = (tables: Record<string, unknown[]>) => tablesDb({ run_steps: STEPS, ...tables }).reader
   const db = reader({ plan_sessions: [SESSION], videos: [{ yt_id: 'v1', title: 'Stretch', duration_s: null }] })
   const prepare = (changes: unknown, from = db) => prepareProposal({ summary: 'Move the session', changes }, from, TODAY)
+
+  describe('his video ratings', () => {
+    const videos = [
+      { yt_id: 'v1', title: 'Stretch', duration_s: null },
+      { yt_id: 'v2', title: 'Neck flow', duration_s: 600 },
+    ]
+    const rated = (rating: string) =>
+      reader({
+        plan_sessions: [{ ...SESSION, kind: 'mobility', video_ids: ['v2'] }],
+        videos,
+        video_feedback: [
+          { yt_id: 'v2', rating, date: '2026-11-03' },
+          { yt_id: 'v2', rating: 'keep', date: '2026-10-20' },
+        ],
+      })
+    const add = { action: 'add', date: TODAY, slot: 'am', kind: 'mobility', title: 'Stretching', video_ids: ['v2'] }
+
+    it('refuses a video he asked not to see again', async () => {
+      const { problems } = await prepare([add], rated('drop'))
+      expect(problems).toEqual(['change 1: video v2 (Neck flow (10 min)): he asked not to see this video again'])
+    })
+
+    it('goes by the latest rating: keep after drop is fine', async () => {
+      const db = reader({ videos, video_feedback: [{ yt_id: 'v2', rating: 'keep', date: '2026-11-03' }, { yt_id: 'v2', rating: 'drop', date: '2026-10-20' }] })
+      const { problems, notes } = await prepare([add], db)
+      expect(problems).toBeUndefined()
+      expect(notes).toEqual([])
+    })
+
+    it('shows an irritated one, and tells the coach so', async () => {
+      const { problems, notes, lines } = await prepare([add], rated('irritated'))
+      expect(problems).toBeUndefined()
+      expect(lines).toContain('Video: Neck flow (10 min)')
+      expect(notes).toEqual(['change 1: video v2 (Neck flow (10 min)): his latest rating was irritated, on 2026-11-03. Choose another, or tell him why this one.'])
+    })
+
+    it('leaves alone a video already in the session: moving it is fine', async () => {
+      const { problems, notes } = await prepare([{ action: 'change', session_id: 's1', date: '2026-11-06' }], rated('drop'))
+      expect(problems).toBeUndefined()
+      expect(notes).toEqual([])
+    })
+  })
 
   it('uses the same exercises as the app', () => {
     expect(EXERCISES).toEqual(Object.fromEntries(CATALOG.map((e) => [e.slug, e.name])))

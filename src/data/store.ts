@@ -18,6 +18,7 @@ export type Table =
   | 'run_steps'
   | 'reviews'
   | 'videos'
+  | 'video_feedback'
   | 'sync_status'
   | 'chat_messages'
   | 'plan_proposals'
@@ -38,7 +39,7 @@ function changed(tables: Table[]) {
 
 // What each read looks at
 export const READS = {
-  day: ['plan_sessions', 'session_logs', 'symptoms', 'activities', 'tests', 'videos'],
+  day: ['plan_sessions', 'session_logs', 'symptoms', 'activities', 'tests', 'videos', 'video_feedback'],
   weekDots: ['plan_sessions', 'session_logs'],
   checkIns: ['symptoms', 'activities', 'weights'],
   runSteps: ['run_steps'],
@@ -57,16 +58,17 @@ export const READS = {
 
 // What each write touches
 const WRITES = {
-  setStatus: ['session_logs', 'symptoms', 'tests', 'activities'],
+  setStatus: ['session_logs', 'symptoms', 'tests', 'activities', 'video_feedback'],
   setPain: ['symptoms'],
   setRun: ['activities'],
   setComment: ['session_logs'],
   setTest: ['tests'],
-  moveSession: ['plan_sessions', 'symptoms', 'activities', 'tests'],
+  setRating: ['video_feedback'],
+  moveSession: ['plan_sessions', 'symptoms', 'activities', 'tests', 'video_feedback'],
   saveCheckIn: ['symptoms'],
   saveClean: ['activities'],
   saveWeight: ['weights'],
-  decideProposal: ['plan_proposals', 'plan_sessions', 'symptoms', 'activities', 'tests', 'reviews'],
+  decideProposal: ['plan_proposals', 'plan_sessions', 'symptoms', 'activities', 'tests', 'reviews', 'video_feedback'],
 } satisfies Partial<Record<keyof Backend, Table[]>>
 
 export const data = {
@@ -128,6 +130,7 @@ export const write = {
   setRun: save('setRun', 'Run log not saved'),
   setComment: save('setComment', 'Note not saved'),
   setTest: save('setTest', 'Result not saved'),
+  setRating: save('setRating', 'Rating not saved'),
   moveSession: save('moveSession', 'Not moved'),
   saveCheckIn: save('saveCheckIn'),
   saveClean: save('saveClean'),
@@ -166,5 +169,5 @@ export async function sendChat(text: string, onReply: (soFar: string) => void): 
 
 // Everything may have changed elsewhere (the coach, the watch sync): reload all
 export function refreshAll() {
-  changed(['plan_sessions', 'session_logs', 'symptoms', 'activities', 'tests', 'weights', 'run_steps', 'reviews', 'videos', 'sync_status', 'chat_messages', 'plan_proposals'])
+  changed(['plan_sessions', 'session_logs', 'symptoms', 'activities', 'tests', 'weights', 'run_steps', 'reviews', 'videos', 'video_feedback', 'sync_status', 'chat_messages', 'plan_proposals'])
 }

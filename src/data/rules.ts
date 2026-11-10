@@ -1,6 +1,7 @@
 // The rules for rows the app writes, shared by both backends (Supabase and the demo's
 // memory) and the simulator, so they can't drift apart. No Supabase import here.
 import type { EveningArea, Status, WatchActivity } from '@/data/types'
+import { isRating, type VideoRating } from '@/lib/video-ratings'
 
 // Kinds are free text written by the coach: compare them in lower case
 export const kindOf = (kind: string) => kind.trim().toLowerCase()
@@ -10,10 +11,29 @@ export const isRun = (kind: string) => kindOf(kind) === 'run'
 export const happened = (status: string | null | undefined): status is 'done' | 'partial' => status === 'done' || status === 'partial'
 
 // What a new status removes: skipped (or a cleared log) can't have pain during, test
-// results or a run log: they all need the session to have happened.
+// results, a run log or video ratings: they all need the session to have happened.
 export function clearsOnStatus(status: Status | null) {
   const gone = !happened(status)
-  return { pain: gone, tests: gone, runLog: gone }
+  return { pain: gone, tests: gone, runLog: gone, ratings: gone }
+}
+
+// Ratings by video for one session: this session's own, and the latest from another
+// session on or before its date ("Last time"). `rows` must be newest first.
+export function ratingsFor<R extends { yt_id: string; plan_session_id: string | null; rating: string; date: string }>(
+  sessionId: string,
+  date: string,
+  videoIds: string[],
+  rows: R[],
+) {
+  const ratings: Record<string, VideoRating> = {}
+  const lastRatings: Record<string, { rating: VideoRating; date: string }> = {}
+  for (const id of videoIds) {
+    const own = rows.find((r) => r.yt_id === id && r.plan_session_id === sessionId)
+    if (own && isRating(own.rating)) ratings[id] = own.rating
+    const before = rows.find((r) => r.yt_id === id && r.plan_session_id !== sessionId && r.date <= date)
+    if (before && isRating(before.rating)) lastRatings[id] = { rating: before.rating, date: before.date }
+  }
+  return { ratings, lastRatings }
 }
 
 // Check-in rows: one per day, area and timing, no session
@@ -55,6 +75,7 @@ export const LIMITS = {
   step: (n: number) => Number.isInteger(n) && n >= 1,
   status: (s: string) => s === 'done' || s === 'partial' || s === 'skipped',
   chat: (s: string) => s.trim().length > 0 && s.length <= CHAT_MAX_CHARS,
+  rating: (s: string) => isRating(s),
 }
 
 export function check(ok: boolean, what: string) {

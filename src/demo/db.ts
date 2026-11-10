@@ -11,6 +11,7 @@ export type Db = {
   run_steps: Tables<'run_steps'>[]
   reviews: Tables<'reviews'>[]
   videos: Tables<'videos'>[]
+  video_feedback: Tables<'video_feedback'>[]
   sync_status: Tables<'sync_status'>[]
 }
 
@@ -24,6 +25,7 @@ export const TABLES = [
   'run_steps',
   'reviews',
   'videos',
+  'video_feedback',
   'sync_status',
 ] as const satisfies readonly (keyof Db)[]
 

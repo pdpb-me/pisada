@@ -294,8 +294,13 @@ const COMMENTS: Partial<Record<Kind, string[]>> = {
   mobility: ['Skipped the head press, as planned'],
 }
 
+// What he said about a video after doing it (most often nothing)
+const RATED: readonly string[] = ['keep', 'keep', 'keep', 'keep', 'easy', 'easy', 'hard', 'irritated']
+
 export function buildWorld(seed = 7): Db {
   const r = rng(seed)
+  // its own random numbers, so the ratings don't change the rest of the made-up weeks
+  const rv = rng(seed + 101)
   const db = emptyDb()
   const id = (() => {
     let n = 0
@@ -505,6 +510,11 @@ export function buildWorld(seed = 7): Db {
       const logId = id('log')
       db.session_logs.push({ id: logId, plan_session_id: p.id, status, comment, logged_at: loggedAt, user_id: DEMO_USER })
 
+      if (status !== 'skipped')
+        for (const yt_id of p.video_ids)
+          if (rv() < 0.55)
+            db.video_feedback.push({ id: id('vf'), plan_session_id: p.id, yt_id, date, rating: pick(rv, RATED), created_at: loggedAt, user_id: DEMO_USER })
+
       const asksArch = ['tendon', 'run', 'stability', 'test', 'hike'].includes(p.kind)
       if (asksArch && status !== 'skipped' && pain != null && r() < 0.85)
         db.symptoms.push({
@@ -699,6 +709,7 @@ export function snapshot(world: Db, moment: Date): Db {
   db.run_steps = world.run_steps.filter((x) => x.created_at <= t)
   db.reviews = world.reviews.filter((x) => x.created_at <= t)
   db.videos = world.videos.filter((x) => x.created_at <= t)
+  db.video_feedback = world.video_feedback.filter((x) => x.created_at <= t)
   if (db.activities.some((a) => a.source === 'intervals'))
     db.sync_status = [{ source: 'intervals', synced_at: lastSync(moment), via: 'daily', count: 4, user_id: DEMO_USER }]
   return structuredClone(db)

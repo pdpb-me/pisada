@@ -21,7 +21,7 @@ You (Claude, in the claude.ai project "Pisada do Pedro") read and write Pedro's 
 
 Start a new chat for each week. When Pedro says **"weekly check-in"** (best on Sunday **after 20:30**: then the day's evening check-in and the 20:00 watch sync are in; `select synced_at from sync_status` tells how fresh the watch data is):
 
-1. **Read the week just ended, Monday to Sunday** (queries under "Useful queries"): session logs and notes, morning arch, evening neck and hands, test results, weight (weekly average, not single days), and watch activities (`source = 'intervals'`: runs, bike commutes, gym). If logs or check-ins are missing, **ask Pedro**; don't guess (a skip is data, a gap is just a gap).
+1. **Read the week just ended, Monday to Sunday** (queries under "Useful queries"): session logs and notes, morning arch, evening neck and hands, test results, weight (weekly average, not single days), watch activities (`source = 'intervals'`: runs, bike commutes, gym), and **the week's video feedback** (`video_feedback`, below). If logs or check-ins are missing, **ask Pedro**; don't guess (a skip is data, a gap is just a gap). On a video rated `irritated` or `drop`, write what you learned in that video's `notes` and, if it matters for safety, `flags` (the note he wrote on the session usually says what it irritated).
 2. **Summarise in 5–8 short lines:** what was done vs planned, how arch, neck and tingling moved compared with the week before, anything worrying (pain 4+ two days in a row, neck worse after long rides, a run that wasn't clean).
 3. **Propose next week:** sessions per day and slot, the ladder step (only up after 2 clean runs in a row), test dates. Wait for his OK.
 4. **Write it:** `plan_sessions` for next week (with `exercises` slugs where they apply, and **`run_step` on every run**), and one `reviews` row (see `reviews` below).
@@ -136,6 +136,16 @@ Progression rules (display only): clean = no arch niggle, or ≤ 3/10 during tha
   - `tags`: **a rough first guess from the title** (69 videos have none). Body areas `foot`, `ankle`, `calf`, `knee`, `hip`, `glute`, `hamstring`, `core`, `back`, `neck`, `shoulder`; types `mobility`, `stretch`, `strength`, `warmup`, `cooldown`, `plyometric`, `balance`, `live`. When you watch-check or learn what a video really contains, fix its tags and write `notes`; a re-import keeps tags, notes and flags already set.
   - Example: short foot/ankle videos, `select yt_id, title, duration_s/60 as min from videos where tags && '{foot,ankle}' and duration_s < 900 order by views desc;`. Title search: `where title ilike '%plantar%'`.
   - Re-import (Pedro asks Claude Code): `node scripts/videos-to-sql.mjs <dataset.xlsx> <out-folder>` writes upsert SQL in batches.
+- **`video_feedback`** (from 10 Nov): Pedro's one-tap word on a video, after a session logged done or partly. Written by the app; **read it, don't write it.** Columns: `yt_id` (→ `videos`), `plan_session_id` (empty if that session was later removed), `date` (the session's date), `rating`, `created_at`. `rating` is one of `keep`, `easy` (Too easy), `hard` (Too hard), `irritated` (Irritated: he then usually writes what it irritated in the session's note), `drop` (Don't show again). One row per session and video; a new tap replaces it. The app shows it under the video ("You said: Too easy", and "Last time: Keep" when the video is planned again). **The app never changes `videos.notes` or `flags` from a rating: you do that, at the weekly check-in.** Prefer videos he rated `keep`; **don't plan a video whose latest rating is `drop`** (the in-app coach can't propose one). Feedback with its note:
+
+  ```sql
+  select v.title, f.date, f.rating, l.comment
+  from video_feedback f
+  join videos v using (yt_id)
+  left join session_logs l on l.plan_session_id = f.plan_session_id
+  order by f.date desc limit 40;
+  ```
+
 - **`tests`:** `date`, `test` (e.g. `sl_heel_raise`), `side`, `value`, `unit`. **The app writes these itself:** a session whose `exercises` include `sl_heel_raise_test` shows Left / Right number boxes in its log and saves one row per side with `test = 'sl_heel_raise'`, `unit = 'reps'` and `plan_session_id` set (one value per session + test + side; a correction overwrites). Read results with `select date, side, value from tests where test = 'sl_heel_raise' order by date, side;`. Rows you write by hand can leave `plan_session_id` null.
 - **`reviews`:** one per week, written by you at the weekly check-in. **`week_start` = the Monday of the week the decisions are for** (the new week); `summary` = how the week just ended went (5–8 short lines); `decisions` = what changes in the new week (1–3 short sentences: it's the first thing Pedro reads on Today). One row per `week_start`: to fix one, `update` it. `updated_at` is set by the database: don't write it. A week with no plan (a holiday) still gets a row if you have something to say ("Enjoy the holiday: no plan this week"). The app shows the row whose `week_start` is this week's Monday at the top of Today, and the latest one on Progress.
 

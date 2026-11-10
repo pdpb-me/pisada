@@ -7,6 +7,8 @@ import { tinglingLabel } from '@/lib/tingling'
 import { areaSummary, compare, dailySeries, headline, zoneLine } from '@/lib/trends'
 import { rightOfLeft, testDays } from '@/lib/tests'
 import { changeText, weightChange } from '@/lib/weight'
+import { ratingLabel, ratingLine } from '@/lib/video-ratings'
+import { ratingsFor } from '@/data/rules'
 
 describe('dates (local calendar days)', () => {
   it('adds days across the end of summer time (25 Oct 2026, Europe)', () => {
@@ -157,5 +159,27 @@ describe('a flare is never hidden', () => {
     expect(headline({ arch: 'same', neck: 'none', hands: 'none' }, ['Arch Severe on Fri.'])).toBe('Arch Severe on Fri. Arch about the same.')
     const a = areaSummary([s('2026-11-13', 2), s('2026-11-14', 2), s('2026-11-15', 2), s('2026-11-16', 8)], 'arch', '2026-11-16')
     expect(zoneLine(a, painLabel)).toBe('Latest answer Severe: stop zone. Rest it today and tell your coach.')
+  })
+})
+
+describe('video ratings', () => {
+  it('say the rating in words, this session first, else last time', () => {
+    expect(ratingLabel('drop')).toBe('Don’t show again')
+    expect(ratingLine('easy', { rating: 'keep' })).toBe('You said: Too easy')
+    expect(ratingLine(undefined, { rating: 'keep' })).toBe('Last time: Keep')
+    expect(ratingLine(undefined, undefined)).toBeNull()
+  })
+
+  it('find this session’s own and the latest other one, never a later one', () => {
+    const rows = [
+      { yt_id: 'a', plan_session_id: 'later', rating: 'drop', date: '2026-11-20' },
+      { yt_id: 'a', plan_session_id: 'me', rating: 'easy', date: '2026-11-12' },
+      { yt_id: 'a', plan_session_id: 'old', rating: 'keep', date: '2026-11-05' },
+      { yt_id: 'a', plan_session_id: 'older', rating: 'hard', date: '2026-11-01' },
+    ]
+    expect(ratingsFor('me', '2026-11-12', ['a', 'b'], rows)).toEqual({
+      ratings: { a: 'easy' },
+      lastRatings: { a: { rating: 'keep', date: '2026-11-05' } },
+    })
   })
 })

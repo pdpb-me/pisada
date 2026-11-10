@@ -84,7 +84,8 @@ How the plan is built:
 - A weekly note has a week_start, the Monday of the week it is for. decisions: 1–3 short sentences for that week; it is the first thing he reads on the Today screen. summary: how the week before went, in 5–8 short lines.
 
 Videos:
-- You only have their titles, and tags guessed from the titles; nobody has checked most of them. Say so when you suggest one, pass on any flags, and prefer the drawn figures for anything sensitive.`
+- You only have their titles, tags guessed from the titles, and his ratings; nobody has checked most of them. Say so when you suggest one, pass on any flags, and prefer the drawn figures for anything sensitive.
+- He rates videos after doing them: keep, easy (too easy), hard (too hard), irritated, drop (don't show it again). search_videos shows how many times he did each one and his last rating. Prefer ones he rated Keep. Don't plan one he asked not to see again.`
 
 export function systemPrompt(instructions: string) {
   const about = instructions.trim()
@@ -201,7 +202,7 @@ export const TOOLS = [
   { name: 'get_weight', description: `His weight as weekly averages for the last ${WEIGHT_WEEKS} weeks with entries, newest first: the Monday, the average in kg, how many entries.`, input_schema: nothing },
   {
     name: 'search_videos',
-    description: `Search his video list, shortest first, at most ${MAX_VIDEOS}. Every field is optional. Tags are a rough guess from the title.`,
+    description: `Search his video list, shortest first, at most ${MAX_VIDEOS}. Every field is optional. Tags are a rough guess from the title. Each video has times_done (sessions with it he logged done or partly) and last_rating (his latest word on it, with the date; null if he never rated it).`,
     input_schema: {
       type: 'object',
       properties: {
@@ -407,8 +408,27 @@ const READERS: Record<string, (db: Reader, input: Record<string, unknown>) => Pr
     if (typeof text === 'string' && text.trim()) query = query.ilike('title', `%${text.trim().slice(0, 60).replace(/[%_\\]/g, '\\$&')}%`)
     if (typeof min_minutes === 'number' && min_minutes > 0) query = query.gte('duration_s', Math.round(min_minutes * 60))
     if (typeof max_minutes === 'number' && max_minutes > 0) query = query.lte('duration_s', Math.round(max_minutes * 60))
-    return rows(await query.order('duration_s').limit(MAX_VIDEOS))
+    const found = rows(await query.order('duration_s').limit(MAX_VIDEOS))
+    const ids = found.map((v) => String(v.yt_id))
+    if (!ids.length) return found
+    // How often he did each one, and what he said about it last
+    const ratings = latestRatings(rows(await ratingsQuery(db, ids)))
+    const planned = rows(await db.from('plan_sessions').select('video_ids, session_logs(status)').overlaps('video_ids', ids).limit(1000))
+    const done = (id: string) =>
+      planned.filter((p) => ((p.video_ids as string[] | null) ?? []).includes(id) && ['done', 'partial'].includes(one(p.session_logs as LogRow | LogRow[] | null)?.status ?? '')).length
+    return found.map((v) => ({ ...v, times_done: done(String(v.yt_id)), last_rating: ratings.get(String(v.yt_id)) ?? null }))
   },
+}
+
+// His ratings of these videos, newest first
+const ratingsQuery = (db: Reader, ids: string[]) =>
+  db.from('video_feedback').select('yt_id, rating, date').in('yt_id', ids).order('date', { ascending: false }).order('created_at', { ascending: false }).limit(500)
+
+// The latest rating of each video, from rows newest first
+export function latestRatings(found: Record<string, unknown>[]) {
+  const latest = new Map<string, { rating: string; date: string }>()
+  for (const r of found) if (!latest.has(String(r.yt_id))) latest.set(String(r.yt_id), { rating: String(r.rating), date: String(r.date) })
+  return latest
 }
 
 // One look-up, as the API wants its answer. What went wrong stays in the logs, not in the chat.
@@ -525,22 +545,38 @@ export async function prepareProposal(input: unknown, db: Reader, today: string)
   const items = changes as Record<string, unknown>[]
 
   const ids = items.map((c) => c.session_id).filter((id): id is string => typeof id === 'string')
-  const videos = items.flatMap((c) => lists(c.video_ids) ?? [])
+  const named = items.flatMap((c) => lists(c.video_ids) ?? [])
   const weeks = items.map((c) => c.week_start).filter(isDay)
   try {
     const sessions = ids.length ? rows(await db.from('plan_sessions').select(`${SESSION_COLUMNS}, session_logs(id)`).in('id', ids)) : []
+    // the videos it names, and the ones the sessions it changes already have (a moved session keeps them)
+    const videos = [...new Set([...named, ...sessions.flatMap((s) => (s.video_ids as string[] | null) ?? [])])]
     const known = videos.length ? rows(await db.from('videos').select('yt_id, title, duration_s').in('yt_id', videos)) : []
     const notes = weeks.length ? rows(await db.from('reviews').select('week_start, summary, decisions').in('week_start', weeks)) : []
     const ladder: StepNames = new Map(rows(await db.from('run_steps').select('step, label').order('step')).map((s) => [Number(s.step), String(s.label ?? '')]))
+    const rated = videos.length ? latestRatings(rows(await ratingsQuery(db, videos))) : new Map<string, { rating: string; date: string }>()
     const inLibrary: VideoNames = new Map(known.map((v) => [v.yt_id, v.duration_s == null ? String(v.title) : `${v.title} (${Math.round(Number(v.duration_s) / 60)} min)`]))
     const lastDay = dayOf(Date.parse(today) + MAX_DAYS_AHEAD * DAY_MS)
     const monday = mondayOf(today)
 
     const problems: string[] = []
+    const videoNotes: string[] = [] // for the coach, when the proposal is shown anyway
     const seen = new Set<string>()
     const result: Change[] = []
     // Runs this proposal puts on a day: these must keep their distance from every other run
     const placed: { label: string; key: string; date: string }[] = []
+
+    // Videos this change puts in a session: his latest rating of each
+    const checkRatings = (s: Session, label: string, before?: Session) => {
+      for (const v of s.video_ids) {
+        if (before?.video_ids.includes(v)) continue
+        const last = rated.get(v)
+        const name = inLibrary.get(v) ?? v
+        if (last?.rating === 'drop') problems.push(`${label}: video ${v} (${name}): he asked not to see this video again`)
+        else if (last?.rating === 'irritated')
+          videoNotes.push(`${label}: video ${v} (${name}): his latest rating was irritated, on ${last.date}. Choose another, or tell him why this one.`)
+      }
+    }
 
     const checkSession = (s: Session, label: string) => {
       if (!isDay(s.date)) problems.push(`${label}: date must be YYYY-MM-DD`)
@@ -582,6 +618,7 @@ export async function prepareProposal(input: unknown, db: Reader, today: string)
           run_step: stepOf(c.run_step, label),
         }
         checkSession(after, label)
+        checkRatings(after, label)
         checkStep(after, label, true)
         if (isRun(after.kind)) placed.push({ label, key: label, date: after.date })
         result.push({ op: 'add', after })
@@ -625,6 +662,7 @@ export async function prepareProposal(input: unknown, db: Reader, today: string)
           run_step: c.run_step === undefined ? keptStep : stepOf(c.run_step, label),
         }
         checkSession(after, label)
+        checkRatings(after, label, before)
         const fresh = !isRun(before.kind)
         // Just moving a session doesn't call for a step
         if (c.kind !== undefined || c.run_step !== undefined) checkStep(after, label, fresh)
@@ -688,7 +726,7 @@ export async function prepareProposal(input: unknown, db: Reader, today: string)
     }
 
     if (problems.length) return { problems }
-    return { summary: title, lines: result.flatMap((change) => linesOf(change, inLibrary, ladder)), changes: result }
+    return { summary: title, lines: result.flatMap((change) => linesOf(change, inLibrary, ladder)), changes: result, notes: videoNotes }
   } catch (e) {
     console.error(`propose_changes: ${e instanceof Error ? e.message : String(e)}`)
     return { problems: ['The plan could not be read just now.'] }

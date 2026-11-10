@@ -2,7 +2,7 @@
 // database (src/demo/db.ts). It follows the same rules (src/data/rules.ts) and checks
 // the same limits as the database (supabase/migrations). No network.
 import type { Backend } from '@/data/api'
-import { check, checkInRow, checkInTiming, clearsOnStatus, isRun, kindOf, LIMITS, pairWatch, WATCH_SPORT } from '@/data/rules'
+import { check, checkInRow, checkInTiming, clearsOnStatus, happened, isRun, kindOf, LIMITS, pairWatch, ratingsFor, WATCH_SPORT } from '@/data/rules'
 import type { ChatMessage, CheckIns, DayDot, DaySession, WatchActivity } from '@/data/types'
 import type { Db } from '@/demo/db'
 import { DEMO_USER } from '@/demo/db'
@@ -87,6 +87,9 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
         sessions.map((p, i) => ({ kind: p.kind, status: logs[i]?.status })),
         recorded,
       )
+      const ratings = d.video_feedback
+        .filter((f) => f.date <= date)
+        .sort((a, b) => byDateDesc(a, b) || (a.created_at < b.created_at ? 1 : -1))
       return sessions.map((p, i): DaySession => {
         const log = logs[i]
         return {
@@ -97,6 +100,7 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
           watch: watch[i],
           tests: d.tests.filter((t) => t.plan_session_id === p.id),
           videos: p.video_ids.flatMap((id) => d.videos.filter((v) => v.yt_id === id)),
+          ...ratingsFor(p.id, p.date, p.video_ids, ratings),
         }
       })
     },
@@ -253,6 +257,7 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
         d.symptoms = d.symptoms.filter((s) => s.session_log_id !== logId) // on delete cascade
       }
       if (clears.tests) d.tests = d.tests.filter((t) => t.plan_session_id !== id)
+      if (clears.ratings) d.video_feedback = d.video_feedback.filter((f) => f.plan_session_id !== id)
       if (!isRun(p.kind)) return
       const existing = runLogOf(id)
       if (clears.runLog) {
@@ -336,6 +341,31 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
         })
     },
 
+    async setRating(id, ytId, rating) {
+      await wait()
+      const d = db()
+      const existing = d.video_feedback.find((f) => f.plan_session_id === id && f.yt_id === ytId)
+      if (rating == null) {
+        d.video_feedback = d.video_feedback.filter((f) => f !== existing)
+        return
+      }
+      check(LIMITS.rating(rating), 'rating')
+      const p = plan(id)
+      if (!p.video_ids.includes(ytId)) throw new Error('This video is not in the session')
+      if (!happened(logOf(id)?.status)) throw new Error('Log the session as done or partly first')
+      if (existing) existing.rating = rating
+      else
+        d.video_feedback.push({
+          id: newId(),
+          plan_session_id: id,
+          yt_id: ytId,
+          date: p.date,
+          rating,
+          created_at: stamp(),
+          user_id: DEMO_USER,
+        })
+    },
+
     async moveSession(id, date, slot) {
       await wait()
       check(LIMITS.slot(slot), 'slot')
@@ -347,6 +377,7 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
       for (const s of d.symptoms) if (log && s.session_log_id === log.id) s.date = date
       for (const a of d.activities) if (a.plan_session_id === id) a.date = date
       for (const t of d.tests) if (t.plan_session_id === id) t.date = date
+      for (const f of d.video_feedback) if (f.plan_session_id === id) f.date = date
     },
 
     async saveCheckIn(date, area, score) {

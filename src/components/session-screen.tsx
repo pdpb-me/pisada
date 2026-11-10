@@ -11,7 +11,7 @@ import { StatusMark } from '@/components/status-mark'
 import { TestCard } from '@/components/test-card'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import type { DaySession, RunChanges, RunStep, Status, Video, WatchActivity } from '@/data/types'
+import type { DaySession, RunChanges, RunStep, Status, Video, VideoRating, WatchActivity } from '@/data/types'
 import { exerciseFor } from '@/exercises/catalog'
 import { useCheckIns } from '@/hooks/use-check-ins'
 import { painLabel } from '@/lib/pain'
@@ -22,6 +22,7 @@ import { kindWord, SLOT_WORD } from '@/lib/session-words'
 import { sessionPain, STATUSES, statusLabel } from '@/lib/session-status'
 import { testFor, type Side, type TestSpec } from '@/lib/tests'
 import { cn } from '@/lib/utils'
+import { ratingLine } from '@/lib/video-ratings'
 
 export type SessionHandlers = {
   onStatus: (status: Status | null) => Promise<boolean>
@@ -29,10 +30,11 @@ export type SessionHandlers = {
   onRun: (changes: RunChanges) => void
   onComment: (comment: string) => Promise<boolean>
   onTest: (spec: TestSpec, side: Side, value: number | null) => void
+  onRating: (ytId: string, rating: VideoRating | null) => void
   onMove: (date: string, slot: string) => Promise<boolean>
 }
 
-function VideoRow({ video }: { video: Video }) {
+function VideoRow({ video, rated }: { video: Video; rated: string | null }) {
   return (
     <a
       href={`https://www.youtube.com/watch?v=${video.yt_id}`}
@@ -66,6 +68,7 @@ function VideoRow({ video }: { video: Video }) {
             {video.flags}
           </span>
         )}
+        {rated && <span className="text-sm text-muted-foreground">{rated}</span>}
       </span>
     </a>
   )
@@ -130,7 +133,7 @@ export function SessionScreen({
   const { area } = sessionPain(session)
   const minutes = sessionMinutes(session, steps)
   const future = session.date > today
-  const hasDetails = !!area || isRun
+  const hasDetails = !!area || isRun || session.videos.length > 0
 
   async function log(status: Status) {
     const ok = await handlers.onStatus(status)
@@ -242,7 +245,7 @@ export function SessionScreen({
               )
             })}
             {session.videos.map((v) => (
-              <VideoRow key={v.yt_id} video={v} />
+              <VideoRow key={v.yt_id} video={v} rated={ratingLine(session.ratings[v.yt_id], session.lastRatings[v.yt_id])} />
             ))}
           </Card>
         )}
@@ -300,6 +303,7 @@ export function SessionScreen({
         onStatus={handlers.onStatus}
         onPain={handlers.onPain}
         onRun={handlers.onRun}
+        onRating={handlers.onRating}
         onComment={handlers.onComment}
         onCleared={() => {
           const was = session.log?.status as Status | undefined

@@ -103,6 +103,7 @@ function Day({
       onRun: (changes) => day.setRun(s(), changes),
       onComment: (comment) => day.setComment(s(), comment),
       onTest: (spec, side, value) => day.setTest(s(), spec, side, value),
+      onRating: (ytId, rating) => day.setRating(s(), ytId, rating),
       onMove: async (newDate, slot) => {
         const before = s()
         const ok = await day.moveSession(before, newDate, slot)

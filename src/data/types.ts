@@ -1,6 +1,9 @@
 // The shapes the screens work with. Rows come from the tables in database.types.ts;
 // a few are joined or trimmed for one screen.
 import type { Tables } from '@/lib/database.types'
+import type { VideoRating } from '@/lib/video-ratings'
+
+export type { VideoRating }
 
 export type Symptom = Tables<'symptoms'>
 export type SessionLog = Tables<'session_logs'> & { symptoms: Symptom[] }
@@ -22,6 +25,8 @@ export type DaySession = Tables<'plan_sessions'> & {
   watch: WatchActivity | null // the same run from the watch (source 'intervals', same date)
   tests: TestResult[] // measured results (e.g. heel-raise reps, L and R), for test sessions
   videos: Video[]
+  ratings: Record<string, VideoRating> // by yt_id: what he said about each video in this session
+  lastRatings: Record<string, { rating: VideoRating; date: string }> // by yt_id: the latest from another session
 }
 
 export type DayDot = { id: string; slot: string; kind: string; status: string | null }

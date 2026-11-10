@@ -512,6 +512,51 @@ export type Database = {
           },
         ]
       }
+      video_feedback: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          plan_session_id: string | null
+          rating: string
+          user_id: string
+          yt_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          plan_session_id?: string | null
+          rating: string
+          user_id?: string
+          yt_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          plan_session_id?: string | null
+          rating?: string
+          user_id?: string
+          yt_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_feedback_plan_session_id_fkey"
+            columns: ["plan_session_id"]
+            isOneToOne: false
+            referencedRelation: "plan_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_feedback_yt_id_fkey"
+            columns: ["yt_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["yt_id"]
+          },
+        ]
+      }
       videos: {
         Row: {
           available: boolean

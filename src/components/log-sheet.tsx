@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBackCloses } from '@/hooks/use-back-stack'
-import { Choice, PainScale } from '@/components/pain-scale'
+import { Chips, Choice, PainScale } from '@/components/pain-scale'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import type { DaySession, RunChanges, RunStep, Status } from '@/data/types'
+import type { DaySession, RunChanges, RunStep, Status, VideoRating } from '@/data/types'
 import type { PainArea } from '@/lib/pain-areas'
 import { sessionPain, STATUSES } from '@/lib/session-status'
+import { RATINGS } from '@/lib/video-ratings'
 
 const NOTE_HINT: Record<string, string> = {
   neck: 'e.g. only the chin nods, short on time',
@@ -20,7 +21,7 @@ const NOTE_HINT: Record<string, string> = {
 }
 
 // The details of a logged session, in one bottom sheet: status, pain during, the run's
-// ladder step, a note. Taps save at once; the note saves when the sheet closes.
+// ladder step, a word on each video, a note. Taps save at once; the note saves when the sheet closes.
 export function LogSheet({
   open,
   onOpenChange,
@@ -33,6 +34,7 @@ export function LogSheet({
   onStatus: (status: Status | null) => Promise<boolean>
   onPain: (area: PainArea, score: number | null) => void
   onRun: (changes: RunChanges) => void
+  onRating: (ytId: string, rating: VideoRating | null) => void
   onComment: (comment: string) => Promise<boolean>
   onCleared: () => void
 }) {
@@ -50,6 +52,7 @@ function LogForm({
   onStatus,
   onPain,
   onRun,
+  onRating,
   onComment,
   onCleared,
   onClose,
@@ -59,6 +62,7 @@ function LogForm({
   onStatus: (status: Status | null) => Promise<boolean>
   onPain: (area: PainArea, score: number | null) => void
   onRun: (changes: RunChanges) => void
+  onRating: (ytId: string, rating: VideoRating | null) => void
   onComment: (comment: string) => Promise<boolean>
   onCleared: () => void
   onClose: () => void
@@ -66,6 +70,8 @@ function LogForm({
   const saved = session.log?.comment ?? ''
   const [note, setNote] = useState(saved)
   const [noteOpen, setNoteOpen] = useState(saved !== '')
+  const [irritated, setIrritated] = useState(false) // the note then asks what it irritated
+  const noteRef = useRef<HTMLTextAreaElement>(null)
   const { area, score } = sessionPain(session)
   const happened = session.log?.status === 'done' || session.log?.status === 'partial'
   const run = session.activity
@@ -148,6 +154,30 @@ function LogForm({
           </div>
         )}
 
+        {happened && session.videos.length > 0 && (
+          <div className="flex flex-col gap-4">
+            <span className="text-sm font-medium">
+              {session.videos.length > 1 ? 'How were the videos?' : 'How was the video?'} <span className="font-normal text-muted-foreground">· optional</span>
+            </span>
+            {session.videos.map((v) => (
+              <Chips
+                key={v.yt_id}
+                label={v.title}
+                options={RATINGS}
+                value={session.ratings[v.yt_id] ?? null}
+                onChange={(rating) => {
+                  onRating(v.yt_id, rating)
+                  if (rating !== 'irritated') return
+                  // what it irritated goes in the note
+                  setIrritated(true)
+                  setNoteOpen(true)
+                  setTimeout(() => noteRef.current?.focus(), 0)
+                }}
+              />
+            ))}
+          </div>
+        )}
+
         {session.log &&
           (noteOpen ? (
             <div className="flex flex-col gap-2">
@@ -155,10 +185,11 @@ function LogForm({
                 Note <span className="font-normal text-muted-foreground">· optional</span>
               </label>
               <Textarea
+                ref={noteRef}
                 id="log-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder={NOTE_HINT[session.kind] ?? 'Anything worth remembering'}
+                placeholder={irritated ? 'What did it irritate?' : (NOTE_HINT[session.kind] ?? 'Anything worth remembering')}
                 rows={3}
               />
             </div>

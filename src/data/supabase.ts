@@ -1,7 +1,7 @@
 // The real backend: Pedro's Supabase project. Only this file and supabase-client.ts
 // talk to Supabase; the demo build swaps it out (see src/data/backend.ts).
 import type { Backend } from '@/data/api'
-import { checkInRow, checkInTiming, clearsOnStatus, isRun, kindOf, pairWatch, WATCH_SPORT, watchSport } from '@/data/rules'
+import { checkInRow, checkInTiming, clearsOnStatus, happened, isRun, kindOf, pairWatch, ratingsFor, WATCH_SPORT, watchSport } from '@/data/rules'
 import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/data/supabase-client'
 import type { ChatMessage, CheckIns, DayDot, DaySession, Video, WatchActivity } from '@/data/types'
 import { now } from '@/lib/clock'
@@ -57,7 +57,7 @@ async function waitForReply(after: string | undefined) {
 }
 
 async function planSession(id: string) {
-  const p = check(await supabase.from('plan_sessions').select('id, date, kind, run_step').eq('id', id).maybeSingle())
+  const p = check(await supabase.from('plan_sessions').select('id, date, kind, run_step, video_ids').eq('id', id).maybeSingle())
   if (!p) throw new Error('This session is no longer in the plan')
   return p
 }
@@ -121,7 +121,7 @@ export const backend: Backend = {
     )
     const ids = [...new Set(data.flatMap((s) => s.video_ids))]
     const recorded = data.some((s) => watchSport(s.kind) && s.session_logs?.status !== 'skipped')
-    const [videos, watchRows] = await Promise.all([
+    const [videos, ratings, watchRows] = await Promise.all([
       ids.length
         ? supabase
             .from('videos')
@@ -129,6 +129,18 @@ export const backend: Backend = {
             .in('yt_id', ids)
             .then((r) => check(r))
         : ([] as Video[]),
+      // what he said about these videos, this time and before (newest first)
+      ids.length
+        ? supabase
+            .from('video_feedback')
+            .select('yt_id, plan_session_id, rating, date')
+            .in('yt_id', ids)
+            .lte('date', date)
+            .order('date', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(500)
+            .then((r) => check(r))
+        : [],
       recorded
         ? supabase
             .from('activities')
@@ -154,6 +166,7 @@ export const backend: Backend = {
         tests,
         // keep the order the plan lists them in
         videos: s.video_ids.flatMap((id) => videos.filter((v) => v.yt_id === id)),
+        ...ratingsFor(s.id, s.date, s.video_ids, ratings),
       }),
     )
   },
@@ -381,6 +394,7 @@ export const backend: Backend = {
       check(await supabase.from('session_logs').delete().eq('plan_session_id', id)) // pain goes with it (cascade)
     }
     if (clears.tests) check(await supabase.from('tests').delete().eq('plan_session_id', id))
+    if (clears.ratings) check(await supabase.from('video_feedback').delete().eq('plan_session_id', id))
     if (!isRun(plan.kind)) return
     if (clears.runLog) {
       check(await supabase.from('activities').delete().eq('plan_session_id', id).neq('source', 'intervals'))
@@ -441,6 +455,23 @@ export const backend: Backend = {
     )
   },
 
+  // What he thought of one video in this session. null removes it. Only once it happened.
+  async setRating(id, ytId, rating) {
+    if (rating == null) {
+      check(await supabase.from('video_feedback').delete().eq('plan_session_id', id).eq('yt_id', ytId))
+      return
+    }
+    const plan = await planSession(id)
+    if (!plan.video_ids.includes(ytId)) throw new Error('This video is not in the session')
+    const log = check(await supabase.from('session_logs').select('status').eq('plan_session_id', id).maybeSingle())
+    if (!happened(log?.status)) throw new Error('Log the session as done or partly first')
+    check(
+      await supabase
+        .from('video_feedback')
+        .upsert({ plan_session_id: id, yt_id: ytId, date: plan.date, rating }, { onConflict: 'plan_session_id,yt_id' }),
+    )
+  },
+
   // Move a session to another day (and/or slot). Anything logged for it moves too.
   async moveSession(id, date, slot) {
     check(await supabase.from('plan_sessions').update({ date, slot }).eq('id', id))
@@ -459,6 +490,11 @@ export const backend: Backend = {
         .then((r) => check(r)),
       supabase
         .from('tests')
+        .update({ date })
+        .eq('plan_session_id', id)
+        .then((r) => check(r)),
+      supabase
+        .from('video_feedback')
         .update({ date })
         .eq('plan_session_id', id)
         .then((r) => check(r)),

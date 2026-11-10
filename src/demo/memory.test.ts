@@ -95,6 +95,58 @@ describe('moving a session', () => {
   })
 })
 
+describe('video ratings', () => {
+  const two = { video_ids: ['vidA', 'vidB'] }
+  beforeEach(() => {
+    plan('mob', 'mobility', '2026-11-19', two)
+    plan('mob2', 'mobility', '2026-11-26', two)
+    for (const yt_id of ['vidA', 'vidB'])
+      db.videos.push({ yt_id, title: yt_id, duration_s: 600, flags: null, notes: null, available: true, playlists: [], tags: [], published_at: null, synced_at: null, views: null, created_at: '', user_id: 'u' })
+  })
+
+  it('keep one row per session and video: a new tap replaces it, null removes it', async () => {
+    await api.setStatus('mob', 'done')
+    await api.setRating('mob', 'vidA', 'easy')
+    await api.setRating('mob', 'vidA', 'keep')
+    await api.setRating('mob', 'vidB', 'drop')
+    expect(db.video_feedback).toHaveLength(2)
+    expect(db.video_feedback.find((f) => f.yt_id === 'vidA')).toMatchObject({ rating: 'keep', date: '2026-11-19', plan_session_id: 'mob' })
+    expect((await api.day('2026-11-19')).find((s) => s.id === 'mob')!.ratings).toEqual({ vidA: 'keep', vidB: 'drop' })
+    await api.setRating('mob', 'vidA', null)
+    expect(db.video_feedback.map((f) => f.yt_id)).toEqual(['vidB'])
+  })
+
+  it('show the last rating the next time the video is planned', async () => {
+    await api.setStatus('mob', 'partial')
+    await api.setRating('mob', 'vidA', 'hard')
+    const next = (await api.day('2026-11-26')).find((s) => s.id === 'mob2')!
+    expect(next.ratings).toEqual({})
+    expect(next.lastRatings).toEqual({ vidA: { rating: 'hard', date: '2026-11-19' } })
+  })
+
+  it('need the session done or partly, and a video of that session', async () => {
+    await expect(api.setRating('mob', 'vidA', 'keep')).rejects.toThrow()
+    await api.setStatus('mob', 'skipped')
+    await expect(api.setRating('mob', 'vidA', 'keep')).rejects.toThrow()
+    await api.setStatus('mob', 'done')
+    await expect(api.setRating('mob', 'other', 'keep')).rejects.toThrow()
+    await expect(api.setRating('mob', 'vidA', 'meh' as never)).rejects.toThrow()
+  })
+
+  it('go when the session is skipped or cleared, and move with it', async () => {
+    await api.setStatus('mob', 'done')
+    await api.setRating('mob', 'vidA', 'keep')
+    await api.moveSession('mob', '2026-11-20', 'am')
+    expect(db.video_feedback[0].date).toBe('2026-11-20')
+    await api.setStatus('mob', 'skipped')
+    expect(db.video_feedback).toHaveLength(0)
+    await api.setStatus('mob', 'done')
+    await api.setRating('mob', 'vidB', 'easy')
+    await api.setStatus('mob', null)
+    expect(db.video_feedback).toHaveLength(0)
+  })
+})
+
 describe('check-ins', () => {
   it('keep one answer per day and area; a new tap corrects it; null removes it', async () => {
     await api.saveCheckIn('2026-11-19', 'arch', 2)
@@ -154,5 +206,10 @@ describe('the simulated weeks', () => {
     for (const s of world.symptoms) expect(s.score >= 0 && s.score <= 10).toBe(true)
     for (const w of world.weights) expect(w.kg >= 30 && w.kg <= 250).toBe(true)
     for (const p of world.plan_sessions) expect(['am', 'pm']).toContain(p.slot)
+    expect(world.video_feedback.length).toBeGreaterThan(0)
+    for (const f of world.video_feedback) {
+      expect(['keep', 'easy', 'hard', 'irritated', 'drop']).toContain(f.rating)
+      expect(world.plan_sessions.find((p) => p.id === f.plan_session_id)?.video_ids).toContain(f.yt_id)
+    }
   })
 })

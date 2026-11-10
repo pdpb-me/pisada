@@ -55,7 +55,8 @@ async function propose(input: unknown, reader: Reader, today: string, userId: st
   if (proposal.problems) return { content: `Not shown to him. Fix this and propose again:\n${proposal.problems.join('\n')}`, is_error: true }
   check(await db.from('plan_proposals').update({ status: 'replaced', decided_at: new Date().toISOString() }).eq('user_id', userId).eq('status', 'pending'))
   check(await db.from('plan_proposals').insert({ thread_id: threadId, user_id: userId, summary: proposal.summary, lines: proposal.lines, changes: proposal.changes }))
-  return { content: PROPOSED, is_error: false }
+  // what it should know about the videos it chose (an irritated one): it answers him with this in mind
+  return { content: [PROPOSED, ...(proposal.notes ?? [])].join('\n'), is_error: false }
 }
 
 async function reply(userId: string, token: string, text: string, instructions: string, send: Send) {
