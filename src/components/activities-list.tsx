@@ -183,7 +183,7 @@ export function ActivitiesList({
                           {hands != null && (
                             <span className="inline-flex items-center gap-1">
                               Hands <span className={cn('size-1.5 rounded-full', PAIN_DOT[painBand(hands)])} aria-hidden />
-                              <span className="text-foreground">{tinglingLabel(hands)}</span>
+                              <span className="text-foreground">{tinglingLabel(hands, date)}</span>
                             </span>
                           )}
                         </span>

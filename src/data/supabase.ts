@@ -1,11 +1,13 @@
 // The real backend: Pedro's Supabase project. Only this file and supabase-client.ts
 // talk to Supabase; the demo build swaps it out (see src/data/backend.ts).
 import type { Backend } from '@/data/api'
-import { checkInRow, checkInTiming, clearsOnStatus, happened, isRun, kindOf, pairWatch, ratingsFor, WATCH_SPORT, watchSport } from '@/data/rules'
+import { checkDetails, checkInRow, checkInTiming, checkInUpdate, clearsOnStatus, happened, isRun, kindOf, pairWatch, ratingsFor, WATCH_SPORT, watchSport } from '@/data/rules'
 import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/data/supabase-client'
 import type { ChatMessage, CheckIns, DayDot, DaySession, Video, WatchActivity } from '@/data/types'
 import { now } from '@/lib/clock'
 import { addDays, appDay, DAY_STARTS_AT } from '@/lib/dates'
+import { isHand } from '@/lib/tingling'
+import { isTrigger } from '@/lib/triggers'
 
 const WATCH_COLUMNS = 'id, date, sport, duration_s, distance_m, hr_avg, load, elevation_m'
 const PAGE = 1000 // Supabase returns at most this many rows per request
@@ -80,6 +82,23 @@ async function lastRunStep() {
       .limit(1),
   )
   return data[0]?.run_step ?? 1
+}
+
+// The hand of the latest tingling answer before this day that had one
+async function lastHand(date: string) {
+  const rows = check(
+    await supabase
+      .from('symptoms')
+      .select('side')
+      .eq('body_area', 'hands')
+      .eq('timing', 'evening')
+      .is('session_log_id', null)
+      .in('side', ['L', 'R', 'B'])
+      .lt('date', date)
+      .order('date', { ascending: false })
+      .limit(1),
+  )
+  return rows[0]?.side ?? null
 }
 
 async function syncedAt() {
@@ -192,7 +211,7 @@ export const backend: Backend = {
     const [answers, run, kg] = await Promise.all([
       supabase
         .from('symptoms')
-        .select('body_area, timing, score')
+        .select('body_area, timing, score, side, triggers')
         .eq('date', date)
         .in('timing', ['next_morning', 'evening'])
         .is('session_log_id', null)
@@ -212,12 +231,18 @@ export const backend: Backend = {
         .maybeSingle()
         .then((r) => check(r)),
     ])
-    const find = (area: string, timing: string) => answers.find((a) => a.body_area === area && a.timing === timing)?.score ?? null
+    const row = (area: string, timing: string) => answers.find((a) => a.body_area === area && a.timing === timing)
+    const find = (area: string, timing: string) => row(area, timing)?.score ?? null
+    const triggers = (area: string) => (row(area, 'evening')?.triggers ?? []).filter(isTrigger)
+    const hand = row('hands', 'evening')?.side
     const r = run[0]
     const result: CheckIns = {
       arch: find('arch', 'next_morning'),
       neck: find('neck', 'evening'),
       hands: find('hands', 'evening'),
+      hand: isHand(hand) ? hand : null,
+      neckTriggers: triggers('neck'),
+      handsTriggers: triggers('hands'),
       weight: kg ? Number(kg.kg) : null,
       run: r ? { id: r.id, planSessionId: r.plan_session_id, step: r.run_step, clean: r.clean } : null,
     }
@@ -263,7 +288,7 @@ export const backend: Backend = {
       all((from, to) =>
         supabase
           .from('symptoms')
-          .select('date, body_area, timing, score')
+          .select('date, body_area, timing, score, triggers')
           .is('session_log_id', null)
           .in('timing', ['next_morning', 'evening'])
           .gte('date', yearAgo)
@@ -507,7 +532,7 @@ export const backend: Backend = {
     const match = () =>
       supabase
         .from('symptoms')
-        .select('id')
+        .select('id, side')
         .eq('date', date)
         .eq('body_area', area)
         .eq('timing', checkInTiming(area))
@@ -527,8 +552,26 @@ export const backend: Backend = {
       return
     }
     const existing = check(await match().limit(1))[0]
-    if (existing) check(await supabase.from('symptoms').update({ score }).eq('id', existing.id))
-    else check(await supabase.from('symptoms').insert(checkInRow(date, area, score)))
+    const hand = area === 'hands' && score > 0 && !isHand(existing?.side) ? await lastHand(date) : null
+    if (existing) check(await supabase.from('symptoms').update(checkInUpdate(area, score, existing, hand)).eq('id', existing.id))
+    else check(await supabase.from('symptoms').insert(checkInRow(date, area, score, hand)))
+  },
+
+  // Which hand, and what it came with: on the evening row, once its main answer is there
+  async saveCheckInDetails(date, area, details) {
+    const row = check(
+      await supabase
+        .from('symptoms')
+        .select('id, score')
+        .eq('date', date)
+        .eq('body_area', area)
+        .eq('timing', 'evening')
+        .is('session_log_id', null)
+        .limit(1),
+    )[0]
+    if (!row) throw new Error('Answer the question first')
+    checkDetails(area, row.score, details)
+    check(await supabase.from('symptoms').update(details).eq('id', row.id))
   },
 
   async saveClean(runLogId, clean) {

@@ -9,8 +9,9 @@ import { addDays } from '@/lib/dates'
 import { dayMonth, weekdayShort } from '@/lib/format'
 import { painBand, PAIN_LEVELS } from '@/lib/pain'
 import { PAIN_DOT } from '@/lib/session-status'
-import { TINGLING_LEVELS } from '@/lib/tingling'
-import { AREAS, areaSummary, average, compare, dailySeries, zoneLine, type AreaId } from '@/lib/trends'
+import { TINGLING_LEVELS, TINGLING_SINCE, tinglingLong } from '@/lib/tingling'
+import { AREAS, areaSummary, average, compare, compareDays, dailySeries, zoneLine, type AreaId } from '@/lib/trends'
+import { triggerCounts, triggerSentence } from '@/lib/triggers'
 import { cn } from '@/lib/utils'
 
 // Chart geometry (SVG units): plot from x 14 to 272, words on the right
@@ -44,7 +45,8 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
   )
   const shown = series.slice(start)
   const previous = dailySeries(data.symptoms, area, addDays(data.today, -range.days), range.days)
-  const cmp = compare(
+  // Tingling compares days with tingling: its words changed on TINGLING_SINCE
+  const cmp = (tingling ? compareDays : compare)(
     series.map((d) => d.score),
     previous.map((d) => d.score),
   )
@@ -72,13 +74,25 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
             : { label: 'Neck Mild or worse', shape: 'circle', on: (d: string) => (neckOn.get(d) ?? 0) >= 2 },
         ]
 
+  // Tingling shows today's words; earlier answers sit at the same heights (A bit at Moments,
+  // A lot at Hours), and a thin line marks the day the question changed
   const levels = tingling
     ? TINGLING_LEVELS.map((l) => ({ y: yPain(l.score), text: l.label }))
     : PAIN_LEVELS.map((l) => ({ y: yPain(l.score), text: l.label }))
-  const top = tingling ? yPain(5) : 10
+  const top = tingling ? yPain(8) : 10
+  const changed = tingling ? shown.findIndex((d) => d.date === TINGLING_SINCE) : -1
+  const changedX = changed > 0 ? (x(changed - 1) + x(changed)) / 2 : null
   const ticks = [0, 0.5, 1].map((f) => Math.round(f * (n - 1)))
   const factors = areaFactors(area, data, range.days)
-  const word = (s: number) => a.label(s)
+  const word = (s: number) => a.label(s, data.today)
+  const tingled = answered.filter((d) => d.score > 0).length
+  const long = answered.filter((d) => tinglingLong(d.score, d.date)).length
+  const longAsked = answered.filter((d) => d.date >= TINGLING_SINCE).length
+  // What he said it came with, in the range (neck and hands only)
+  const said =
+    area === 'arch'
+      ? null
+      : triggerSentence(triggerCounts(data.symptoms.filter((s) => s.body_area === a.body_area && s.timing === a.timing && s.date >= (shown[0]?.date ?? data.today))))
 
   return (
     <DetailScreen title={a.title} sub={SUB[area]} onBack={onBack}>
@@ -95,7 +109,7 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
               <span className="flex items-center gap-1.5 text-sm">
                 <span className="text-muted-foreground">Latest ({weekdayShort(week.latest.date)})</span>
                 <span className={cn('size-2 rounded-full', PAIN_DOT[painBand(week.latest.score)])} aria-hidden />
-                <span className="font-semibold">{word(week.latest.score)}</span>
+                <span className="font-semibold">{a.label(week.latest.score, week.latest.date)}</span>
               </span>
             )}
             {!tingling && <p className="rounded-lg bg-muted px-3 py-2 text-sm">{zoneLine(week, word)}</p>}
@@ -109,13 +123,25 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
       <Card className="gap-3 px-4 py-4">
         <RangeTabs value={rangeId} onChange={setRangeId} />
         <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Average, {start > 0 ? `since ${dayMonth(shown[0].date)}` : range.text}</span>
-            <span className="flex items-center gap-2 text-xl font-semibold">
-              {avg != null && <span className={cn('size-2.5 rounded-full', PAIN_DOT[painBand(avg)])} aria-hidden />}
-              {avg != null ? word(avg) : '–'}
-            </span>
-          </div>
+          {tingling ? (
+            <div className="flex flex-col">
+              <span className="text-sm text-muted-foreground">Days with tingling, {start > 0 ? `since ${dayMonth(shown[0].date)}` : range.text}</span>
+              <span className="text-xl font-semibold">{answered.length ? `${tingled} of ${answered.length}` : '–'}</span>
+              {longAsked > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  Hours or more on {long} of {longAsked}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <span className="text-sm text-muted-foreground">Average, {start > 0 ? `since ${dayMonth(shown[0].date)}` : range.text}</span>
+              <span className="flex items-center gap-2 text-xl font-semibold">
+                {avg != null && <span className={cn('size-2.5 rounded-full', PAIN_DOT[painBand(avg)])} aria-hidden />}
+                {avg != null ? word(avg) : '–'}
+              </span>
+            </div>
+          )}
           <span className="max-w-40 text-right text-sm text-muted-foreground">
             {cmp.verdict === 'none'
               ? 'Not enough answers to compare'
@@ -123,15 +149,27 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
           </span>
         </div>
 
-        <svg viewBox={tingling ? '0 80 350 155' : '0 0 350 235'} className="w-full" role="img" aria-label={`${a.title} per day, ${range.text}`}>
-          {!tingling && <rect x="0" y="10" width="4" height="80" className="fill-pain-high" />}
+        <svg viewBox={tingling ? '0 22 350 213' : '0 0 350 235'} className="w-full" role="img" aria-label={`${a.title} per day, ${range.text}`}>
+          <rect x="0" y={top} width="4" height={90 - top} className="fill-pain-high" />
           <rect x="0" y="90" width="4" height="60" className="fill-pain-mid" />
           <rect x="0" y="150" width="4" height="60" className="fill-pain-low" />
           {levels.map((l) => (
             <g key={l.text}>
               <line x1="8" x2={X1 + 4} y1={l.y} y2={l.y} className="stroke-border" strokeDasharray={l.y === 210 ? undefined : '3 3'} />
               <text x={X1 + 8} y={l.y + 4} className="fill-muted-foreground text-[11px]">
-                {l.text}
+                {/* a long word ("Most of the day") on two lines: the chart keeps its frame */}
+                {l.text.length > 10 ? (
+                  <>
+                    <tspan x={X1 + 8} dy="-6">
+                      {l.text.split(' ').slice(0, 2).join(' ')}
+                    </tspan>
+                    <tspan x={X1 + 8} dy="12">
+                      {l.text.split(' ').slice(2).join(' ')}
+                    </tspan>
+                  </>
+                ) : (
+                  l.text
+                )}
               </text>
             </g>
           ))}
@@ -164,6 +202,19 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
             </text>
           ))}
           <line x1="8" x2="8" y1={top} y2="210" className="stroke-border" />
+          {changedX != null && (
+            <g>
+              <line x1={changedX} x2={changedX} y1={top - 8} y2="210" className="stroke-muted-foreground" strokeWidth="1" />
+              <text
+                x={changedX > 200 ? changedX - 4 : changedX + 4}
+                y={top - 2}
+                textAnchor={changedX > 200 ? 'end' : 'start'}
+                className="fill-muted-foreground text-[11px]"
+              >
+                question changed
+              </text>
+            </g>
+          )}
         </svg>
 
         {/* Same frame as the chart, so each mark sits under its day */}
@@ -197,6 +248,7 @@ export function PainDetail({ area, data, onBack }: { area: AreaId; data: Progres
           {tingling ? 'Days the hands tingled' : `Days the ${area === 'arch' ? 'arch was' : 'neck was'} ${factors.bad}`},{' '}
           {start > 0 ? `since ${dayMonth(shown[0].date)}` : range.text}.
         </p>
+        {said && <p className="rounded-lg bg-muted px-3 py-2 text-sm">{said}</p>}
         <FactorsList area={area} result={factors} />
       </Card>
     </DetailScreen>

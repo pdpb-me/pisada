@@ -1,6 +1,8 @@
 // The rules for rows the app writes, shared by both backends (Supabase and the demo's
 // memory) and the simulator, so they can't drift apart. No Supabase import here.
 import type { EveningArea, Status, WatchActivity } from '@/data/types'
+import { isHand } from '@/lib/tingling'
+import { isTrigger } from '@/lib/triggers'
 import { isRating, type VideoRating } from '@/lib/video-ratings'
 
 // Kinds are free text written by the coach: compare them in lower case
@@ -39,9 +41,42 @@ export function ratingsFor<R extends { yt_id: string; plan_session_id: string | 
 // Check-in rows: one per day, area and timing, no session
 export type CheckInArea = 'arch' | EveningArea
 
-export function checkInRow(date: string, area: CheckInArea, score: number) {
-  if (area === 'arch') return { date, body_area: 'arch', side: 'R', timing: 'next_morning', score, context: 'morning check-in' }
-  return { date, body_area: area, side: 'C', timing: 'evening', score, context: area === 'hands' ? 'tingling' : 'evening check-in' }
+// The hands row's side is the hand (L, R, B for both), only when it tingled: a new tingling
+// answer takes the hand of the last answer that had one (`lastHand`), and he can change it
+export function checkInRow(date: string, area: CheckInArea, score: number, lastHand: string | null = null) {
+  if (area === 'arch') return { date, body_area: 'arch', side: 'R', timing: 'next_morning', score, context: 'morning check-in', triggers: [] as string[] }
+  if (area === 'hands') return { date, body_area: 'hands', side: asksHand(score) ? lastHand : null, timing: 'evening', score, context: 'tingling', triggers: [] as string[] }
+  return { date, body_area: area, side: 'C', timing: 'evening', score, context: 'evening check-in', triggers: [] as string[] }
+}
+
+// What the evening card asks after the main answer: which hand, once the hands tingled;
+// what it came with, once the hands tingled or the neck was Moderate or worse
+export const asksHand = (score: number | null | undefined) => score != null && score > 0
+export function asksTriggers(area: CheckInArea, score: number | null | undefined) {
+  if (score == null) return false
+  return area === 'hands' ? score > 0 : area === 'neck' ? score >= 5 : false
+}
+
+// A new answer to the main question: what it keeps of the extra answers. Old hands rows say C
+// (from before the hand was asked): that is no hand.
+export function checkInUpdate(area: CheckInArea, score: number, row: { side: string | null }, lastHand: string | null) {
+  if (area === 'arch') return { score }
+  const side = area === 'hands' ? { side: asksHand(score) ? (isHand(row.side) ? row.side : lastHand) : null } : {}
+  return { score, ...side, ...(asksTriggers(area, score) ? {} : { triggers: [] as string[] }) }
+}
+
+// The extra answers on an evening row, checked against its main answer
+export type CheckInDetails = { side?: string | null; triggers?: string[] }
+export function checkDetails(area: CheckInArea, score: number, details: CheckInDetails) {
+  if (details.side !== undefined) {
+    check(area === 'hands', 'question: only the hands have a side')
+    if (details.side != null) check(isHand(details.side) && asksHand(score), 'hand')
+  }
+  if (details.triggers !== undefined) {
+    const t = details.triggers
+    check(area !== 'arch' && t.every(isTrigger) && new Set(t).size === t.length, 'list of what it came with')
+    if (t.length) check(asksTriggers(area, score), 'question: answer how it was first')
+  }
 }
 
 export const checkInTiming = (area: CheckInArea) => (area === 'arch' ? 'next_morning' : 'evening')

@@ -71,37 +71,42 @@ type ChipsProps<T extends string> = {
   options: readonly { value: T; label: string }[]
   hideLabel?: boolean
   className?: string
+  row?: boolean // one joined row, like Choice (short words that fit side by side)
 } & ({ multiple?: false; value: T | null; onChange: (value: T | null) => void } | { multiple: true; value: T[]; onChange: (value: T[]) => void })
 
 // Optional answers as round chips that wrap onto more lines (a video's rating, what came
 // with the tingling). Not pain or status, so no colour: the chosen ones are dark. A tap on a
 // chosen chip takes it away again. `multiple`: several can be chosen.
 export function Chips<T extends string>(props: ChipsProps<T>) {
-  const { label, options, hideLabel = false, className } = props
+  const { label, options, hideLabel = false, className, row = false } = props
   const items = options.map((o) => (
     <ToggleGroupItem
       key={o.value}
       value={o.value}
-      className="h-11 rounded-full! border px-4 text-sm data-[state=on]:border-transparent data-[state=on]:bg-foreground data-[state=on]:font-semibold data-[state=on]:text-background"
+      className={cn(
+        'h-11 text-sm data-[state=on]:bg-foreground data-[state=on]:font-semibold data-[state=on]:text-background',
+        row ? 'flex-1 px-1' : 'rounded-full! border px-4 data-[state=on]:border-transparent',
+      )}
     >
       {o.label}
     </ToggleGroupItem>
   ))
-  const group = 'flex w-full flex-wrap'
+  const group = row ? 'w-full' : 'flex w-full flex-wrap'
+  const spacing = row ? 0 : 2
   return (
     <fieldset className={cn('flex min-w-0 flex-col', className)}>
       <legend className={cn('mb-2 w-full text-sm', hideLabel && 'sr-only')}>
         <span className="block truncate">{label}</span>
       </legend>
       {props.multiple ? (
-        <ToggleGroup type="multiple" variant="outline" spacing={2} value={props.value} onValueChange={(v) => props.onChange(v as T[])} className={group} aria-label={label}>
+        <ToggleGroup type="multiple" variant="outline" spacing={spacing} value={props.value} onValueChange={(v) => props.onChange(v as T[])} className={group} aria-label={label}>
           {items}
         </ToggleGroup>
       ) : (
         <ToggleGroup
           type="single"
           variant="outline"
-          spacing={2}
+          spacing={spacing}
           value={props.value ?? ''}
           onValueChange={(v) => props.onChange(v === '' ? null : (v as T))}
           className={group}

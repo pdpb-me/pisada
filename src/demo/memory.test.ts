@@ -170,6 +170,63 @@ describe('check-ins', () => {
   })
 })
 
+describe('the evening check-in: which hand, what it came with', () => {
+  const day = '2026-11-19'
+
+  it('saves Hours, Right, Desk on one hands row', async () => {
+    await api.saveCheckIn(day, 'hands', 5)
+    await api.saveCheckInDetails(day, 'hands', { side: 'R' })
+    await api.saveCheckInDetails(day, 'hands', { triggers: ['desk'] })
+    const rows = db.symptoms.filter((x) => x.body_area === 'hands')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ score: 5, side: 'R', triggers: ['desk'], timing: 'evening', context: 'tingling' })
+    expect(await api.checkIns(day)).toMatchObject({ hands: 5, hand: 'R', handsTriggers: ['desk'], neckTriggers: [] })
+  })
+
+  it('takes the hand of the last answer that had one; an old C is no hand', async () => {
+    await api.saveCheckIn('2026-11-17', 'hands', 2)
+    await api.saveCheckInDetails('2026-11-17', 'hands', { side: 'B' })
+    db.symptoms.push({ ...db.symptoms[0], id: 'old', date: '2026-11-18', side: 'C' }) // written before the hand was asked
+    await api.saveCheckIn(day, 'hands', 2)
+    expect((await api.checkIns(day)).hand).toBe('B')
+    await api.saveCheckIn('2026-11-18', 'hands', 5)
+    expect((await api.checkIns('2026-11-18')).hand).toBe('B')
+  })
+
+  it('clears the hand and what it came with when the answer no longer asks them', async () => {
+    await api.saveCheckIn(day, 'hands', 5)
+    await api.saveCheckInDetails(day, 'hands', { side: 'L', triggers: ['bike', 'sleep'] })
+    await api.saveCheckIn(day, 'neck', 8)
+    await api.saveCheckInDetails(day, 'neck', { triggers: ['bike'] })
+    await api.saveCheckIn(day, 'hands', 0)
+    await api.saveCheckIn(day, 'neck', 2)
+    expect(await api.checkIns(day)).toMatchObject({ hands: 0, hand: null, handsTriggers: [], neck: 2, neckTriggers: [] })
+  })
+
+  it('keeps the hand and what it came with when only the amount changes', async () => {
+    await api.saveCheckIn(day, 'hands', 2)
+    await api.saveCheckInDetails(day, 'hands', { side: 'R', triggers: ['desk'] })
+    await api.saveCheckIn(day, 'hands', 8)
+    expect(await api.checkIns(day)).toMatchObject({ hands: 8, hand: 'R', handsTriggers: ['desk'] })
+  })
+
+  it('refuses what the questions don\'t ask', async () => {
+    await expect(api.saveCheckInDetails(day, 'hands', { side: 'R' })).rejects.toThrow() // no answer yet
+    await api.saveCheckIn(day, 'hands', 0)
+    await api.saveCheckIn(day, 'neck', 2)
+    await expect(api.saveCheckInDetails(day, 'hands', { side: 'R' })).rejects.toThrow() // no tingling, no hand
+    await expect(api.saveCheckInDetails(day, 'hands', { triggers: ['desk'] })).rejects.toThrow()
+    await expect(api.saveCheckInDetails(day, 'neck', { triggers: ['desk'] })).rejects.toThrow() // neck only Mild
+    await api.saveCheckIn(day, 'hands', 5)
+    await api.saveCheckIn(day, 'neck', 5)
+    await expect(api.saveCheckInDetails(day, 'neck', { side: 'R' as never })).rejects.toThrow() // the neck has no hand
+    await expect(api.saveCheckInDetails(day, 'hands', { triggers: ['coffee' as never] })).rejects.toThrow()
+    await expect(api.saveCheckInDetails(day, 'hands', { triggers: ['desk', 'desk'] })).rejects.toThrow()
+    await expect(api.saveCheckInDetails(day, 'hands', { side: 'X' as never })).rejects.toThrow()
+    await api.saveCheckInDetails(day, 'hands', { triggers: [] }) // none is a valid answer
+  })
+})
+
 describe('watch data on sessions', () => {
   it('pairs the watch run with the run that happened, not a skipped one', async () => {
     plan('run2', 'run', '2026-11-19', { slot: 'am', created_at: '2026-11-15T16:00:00Z' })

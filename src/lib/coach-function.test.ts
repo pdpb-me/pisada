@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CHAT_MAX_CHARS } from '@/data/rules'
 import { EXERCISES as CATALOG } from '@/exercises/catalog'
 import { PAIN_LEVELS, painLabel } from '@/lib/pain'
-import { TINGLING_LEVELS, tinglingLabel } from '@/lib/tingling'
+import { TINGLING_SINCE as APP_TINGLING_SINCE, tinglingLabel } from '@/lib/tingling'
 import {
   appMoment,
   changeNotes,
@@ -20,6 +20,7 @@ import {
   runTool,
   systemPrompt,
   tinglingWord,
+  TINGLING_SINCE,
   TOOLS,
   userBlocks,
   visibleText,
@@ -122,22 +123,29 @@ describe('what the coach can read', () => {
     for (let score = 0; score <= 10; score++) expect(painWord(score)).toBe(painLabel(score))
   })
 
-  it('gives hand tingling with its own words, the same as the app', () => {
-    for (const { score } of TINGLING_LEVELS) expect(tinglingWord(score)).toBe(tinglingLabel(score))
-    for (let score = 0; score <= 10; score++) expect(tinglingWord(score)).toBe(tinglingLabel(score))
+  it('gives hand tingling with its own words, the same as the app, on each side of the change', () => {
+    expect(TINGLING_SINCE).toBe(APP_TINGLING_SINCE)
+    for (const date of ['2026-11-10', TINGLING_SINCE, '2027-01-15'])
+      for (let score = 0; score <= 10; score++) expect(tinglingWord(score, date)).toBe(tinglingLabel(score, date))
+    expect(tinglingWord(2, '2026-11-10')).toBe('A bit')
+    expect(tinglingWord(5, TINGLING_SINCE)).toBe('Hours')
   })
 
   it('reads the check-ins as words: pain for the arch and neck, tingling for the hands', async () => {
     const { reader, asked } = fakeDb([
       { date: '2026-11-02', timing: 'next_morning', body_area: 'arch', side: 'R', score: 5 },
-      { date: '2026-11-02', timing: 'evening', body_area: 'neck', side: 'C', score: 2 },
-      { date: '2026-11-02', timing: 'evening', body_area: 'hands', side: 'C', score: 5 },
+      { date: '2026-11-02', timing: 'evening', body_area: 'neck', side: 'C', score: 2, triggers: [] },
+      { date: '2026-11-02', timing: 'evening', body_area: 'hands', side: null, score: 5, triggers: [] },
+      { date: '2026-11-14', timing: 'evening', body_area: 'neck', side: 'C', score: 5, triggers: ['bike'] },
+      { date: '2026-11-14', timing: 'evening', body_area: 'hands', side: 'R', score: 5, triggers: ['desk', 'sleep'] },
     ])
     const { content } = await runTool('get_check_ins', WEEK, reader)
     expect(JSON.parse(content)).toEqual([
       { date: '2026-11-02', side: 'R', when: 'morning', area: 'arch', pain: 'Moderate' },
-      { date: '2026-11-02', side: 'C', when: 'evening', area: 'neck', pain: 'Mild' },
-      { date: '2026-11-02', side: 'C', when: 'evening', area: 'hands', tingling: 'A lot' },
+      { date: '2026-11-02', side: 'C', when: 'evening', area: 'neck', pain: 'Mild', came_with: [] },
+      { date: '2026-11-02', hand: null, when: 'evening', area: 'hands', tingling: 'A lot', came_with: [] },
+      { date: '2026-11-14', side: 'C', when: 'evening', area: 'neck', pain: 'Moderate', came_with: ['bike'] },
+      { date: '2026-11-14', hand: 'right', when: 'evening', area: 'hands', tingling: 'Hours', came_with: ['desk', 'sleep'] },
     ])
     expect(content).not.toContain('score')
     const calls = Object.fromEntries(asked[0].calls)

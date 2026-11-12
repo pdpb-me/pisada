@@ -8,14 +8,15 @@ export type AreaId = 'arch' | 'neck' | 'hands'
 
 export const AREAS: Record<
   AreaId,
-  { title: string; sub: string; body_area: string; timing: string; label: (score: number) => string; scale: 'pain' | 'tingling' }
+  // label: the word for a score on that day (tingling changed its words on TINGLING_SINCE)
+  { title: string; sub: string; body_area: string; timing: string; label: (score: number, date: string) => string; scale: 'pain' | 'tingling' }
 > = {
-  arch: { title: 'Arch', sub: 'First steps', body_area: 'arch', timing: 'next_morning', label: painLabel, scale: 'pain' },
-  neck: { title: 'Neck', sub: 'Over the day', body_area: 'neck', timing: 'evening', label: painLabel, scale: 'pain' },
+  arch: { title: 'Arch', sub: 'First steps', body_area: 'arch', timing: 'next_morning', label: (s) => painLabel(s), scale: 'pain' },
+  neck: { title: 'Neck', sub: 'Over the day', body_area: 'neck', timing: 'evening', label: (s) => painLabel(s), scale: 'pain' },
   hands: { title: 'Hands', sub: 'Tingling', body_area: 'hands', timing: 'evening', label: tinglingLabel, scale: 'tingling' },
 }
 
-export type Symptom = { date: string; body_area: string; timing: string; score: number }
+export type Symptom = { date: string; body_area: string; timing: string; score: number; triggers?: string[] }
 
 // One value per day (the highest that day), null when not answered; oldest first, `to` last
 export function dailySeries(symptoms: Symptom[], area: AreaId, to: string, days: number) {
@@ -54,6 +55,27 @@ export function compare(now: (number | null)[], before: (number | null)[]) {
     now: n,
     before: p,
     counts: [a.length, b.length],
+  }
+}
+
+const DAYS_CHANGE = 0.25 // a quarter of the answered days (about 2 in 7) counts as a real change
+
+// Hand tingling, compared by the share of answered days that tingled: the question's words
+// changed on TINGLING_SINCE, and "a day with tingling" means the same on both scales
+export function compareDays(now: (number | null)[], before: (number | null)[]) {
+  const a = now.filter((x): x is number => x != null)
+  const b = before.filter((x): x is number => x != null)
+  const share = (xs: number[]) => xs.filter((x) => x > 0).length / xs.length
+  const counts = [a.length, b.length]
+  if (a.length < MIN_ANSWERS || b.length < MIN_ANSWERS)
+    return { verdict: 'none' as const, now: a.length ? share(a) : null, before: b.length ? share(b) : null, counts }
+  const n = share(a)
+  const p = share(b)
+  return {
+    verdict: n <= p - DAYS_CHANGE ? ('better' as const) : n >= p + DAYS_CHANGE ? ('worse' as const) : ('same' as const),
+    now: n,
+    before: p,
+    counts,
   }
 }
 
@@ -108,7 +130,7 @@ export function areaSummary(symptoms: Symptom[], area: AreaId, today: string): A
     latest,
     worst,
     badDays: week.filter((d) => d.score > 0).length,
-    verdict: compare(scores.slice(7), scores.slice(0, 7)).verdict,
+    verdict: (AREAS[area].scale === 'tingling' ? compareDays : compare)(scores.slice(7), scores.slice(0, 7)).verdict,
   }
 }
 

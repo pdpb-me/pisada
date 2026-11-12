@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { InfoIcon, MoonIcon, SunriseIcon, type LucideIcon } from 'lucide-react'
-import { Choice, PainScale } from '@/components/pain-scale'
+import { Chips, Choice, PainScale } from '@/components/pain-scale'
 import { WeightInput } from '@/components/weight-input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -10,19 +10,29 @@ import type { Ask } from '@/lib/check-ins'
 import { EVENING_FROM } from '@/lib/check-ins'
 import { painBand, painLabel } from '@/lib/pain'
 import { PAIN_DOT } from '@/lib/session-status'
-import { TINGLING_LEVELS, tinglingLabel, tinglingLevelFor } from '@/lib/tingling'
+import { asksHand, asksTriggers } from '@/data/rules'
+import { HANDS, isNewTingling, tinglingLabel, tinglingLevelFor, tinglingLevels } from '@/lib/tingling'
+import { TRIGGERS, type Trigger } from '@/lib/triggers'
 import { cn } from '@/lib/utils'
 
 type CheckInsState = ReturnType<typeof useCheckIns>
 
-function Answer({ label, word, score }: { label: string; word: string; score: number }) {
+function Answer({ label, word, score, extra }: { label: string; word: string; score: number; extra?: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
       <span className="text-muted-foreground">{label}</span>
       <span className={cn('size-2 rounded-full', PAIN_DOT[painBand(score)])} aria-hidden />
       <span className="font-semibold">{word}</span>
+      {extra && <span className="text-muted-foreground">{extra}</span>}
     </span>
   )
+}
+
+const triggerWords = (t: Trigger[]) => (t.length ? `(${t.map((x) => TRIGGERS.find((y) => y.value === x)!.label.toLowerCase()).join(', ')})` : undefined)
+
+// "It came with:", under a hard answer: optional, several or none
+function CameWith({ value, onChange }: { value: Trigger[]; onChange: (t: Trigger[]) => void }) {
+  return <Chips label="It came with:" options={TRIGGERS} multiple row value={value} onChange={onChange} />
 }
 
 // A check-in once answered: one quiet row, with Edit
@@ -124,7 +134,7 @@ export function MorningCheckIn({ state, ask, isToday, afternoon = false }: { sta
             onChange={(v) => state.saveClean(v === 'clean')}
           />
           <span className="text-xs text-muted-foreground">
-            Clean: None or Mild during the run, and back to normal now.
+            Clean: the arch stayed None or Mild, and the next morning was no worse than the morning before the run.
           </span>
         </div>
       )}
@@ -152,13 +162,23 @@ export function MorningCheckIn({ state, ask, isToday, afternoon = false }: { sta
   )
 }
 
-// Evening: neck and hand tingling over the whole day (work, bike, runs, PC)
+// Evening: neck and hand tingling over the whole day (work, bike, runs, PC). From
+// TINGLING_SINCE the tingling is how much of the day, then which hand, and under a hard
+// answer what it came with. Each tap saves.
 export function EveningCheckIn({ state, ask, isToday }: { state: CheckInsState; ask: Ask; isToday: boolean }) {
   const [open, setOpen] = useState(false)
+  const [touched, setTouched] = useState(false) // answered here just now: stay open for the extra rows
   const c = state.checkIns
   if (ask === 'none') return null
   if (!c) return <Skeleton className="h-36 rounded-xl bg-card" />
   const complete = c.neck != null && c.hands != null
+  const date = state.date
+  const asksMore = isNewTingling(date)
+  const extras = asksMore && (asksHand(c.hands) || asksTriggers('neck', c.neck))
+  const tap = <T,>(save: (v: T) => unknown) => (v: T) => {
+    setTouched(true)
+    void save(v)
+  }
 
   if (ask === 'later' && !open && c.neck == null && c.hands == null)
     return (
@@ -180,30 +200,49 @@ export function EveningCheckIn({ state, ask, isToday }: { state: CheckInsState; 
     </Note>
   )
 
-  if (complete && !open)
+  if (complete && !open && !(touched && extras)) {
+    const hand = c.hand && HANDS.find((h) => h.value === c.hand)!.label.toLowerCase()
     return (
       <div className="flex flex-col gap-2">
         <Answered icon={MoonIcon} title={isToday ? 'This evening' : 'That evening'} onEdit={() => setOpen(true)}>
-          <Answer label="Neck" word={painLabel(c.neck!)} score={c.neck!} />
-          <Answer label="Hands" word={tinglingLabel(c.hands!)} score={c.hands!} />
+          <Answer label="Neck" word={painLabel(c.neck!)} score={c.neck!} extra={triggerWords(c.neckTriggers)} />
+          <Answer
+            label="Hands"
+            word={`${tinglingLabel(c.hands!, date)}${hand ? `, ${hand}` : ''}`}
+            score={c.hands!}
+            extra={triggerWords(c.handsTriggers)}
+          />
         </Answered>
         {note}
       </div>
     )
+  }
 
   return (
     <Asking title={isToday ? 'How was today?' : 'How was that day?'} sub="The whole day: work, bike, runs. Not just the exercises.">
-      <PainScale label="Neck" value={c.neck} onChange={(s) => state.save('neck', s)} />
+      <PainScale label="Neck" value={c.neck} onChange={tap((s: number) => state.save('neck', s))} />
+      {asksMore && asksTriggers('neck', c.neck) && <CameWith value={c.neckTriggers} onChange={tap((t: Trigger[]) => state.saveTriggers('neck', t))} />}
       <PainScale
-        label="Hands tingling"
+        label={asksMore ? 'Hands tingling: how much of the day?' : 'Hands tingling'}
         value={c.hands}
-        onChange={(s) => state.save('hands', s)}
-        levels={TINGLING_LEVELS}
-        levelFor={tinglingLevelFor}
+        onChange={tap((s: number) => state.save('hands', s))}
+        levels={tinglingLevels(date)}
+        levelFor={(s) => tinglingLevelFor(s, date)}
       />
+      {asksMore && asksHand(c.hands) && (
+        <Choice label="Which hand?" options={[...HANDS]} value={c.hand} onChange={tap(state.saveHand)} />
+      )}
+      {asksMore && asksTriggers('hands', c.hands) && <CameWith value={c.handsTriggers} onChange={tap((t: Trigger[]) => state.saveTriggers('hands', t))} />}
       {note}
       {(complete || open) && (
-        <Button variant="outline" className="h-11 rounded-full" onClick={() => setOpen(false)}>
+        <Button
+          variant="outline"
+          className="h-11 rounded-full"
+          onClick={() => {
+            setOpen(false)
+            setTouched(false)
+          }}
+        >
           Done
         </Button>
       )}

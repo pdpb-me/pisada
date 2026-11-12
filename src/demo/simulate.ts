@@ -17,6 +17,7 @@
 //   W12 16 Nov  back: step 4, a test on Thursday
 import { addDays } from '@/lib/dates'
 import type { Tables } from '@/lib/database.types'
+import { isNewTingling } from '@/lib/tingling'
 import { DEMO_USER, emptyDb, type Db } from '@/demo/db'
 
 export const FIRST_MONDAY = '2026-08-31'
@@ -301,6 +302,7 @@ export function buildWorld(seed = 7): Db {
   const r = rng(seed)
   // its own random numbers, so the ratings don't change the rest of the made-up weeks
   const rv = rng(seed + 101)
+  const rt = rng(seed + 202) // and for the evening's new questions (from TINGLING_SINCE)
   const db = emptyDb()
   const id = (() => {
     let n = 0
@@ -526,6 +528,7 @@ export function buildWorld(seed = 7): Db {
           timing: 'during',
           score: pain,
           context: null,
+          triggers: [],
           created_at: loggedAt,
           user_id: DEMO_USER,
         })
@@ -619,8 +622,27 @@ export function buildWorld(seed = 7): Db {
       holiday(date) || trip(date) || (lateWeek(date) && dow < 2) || (sick(date) && r() < 0.6) || r() < 0.18 || (week === WEEKS && dow >= 3)
     if (!missEvening) {
       const when = at(date, hm(21, between(r, 10, 55)))
-      db.symptoms.push(checkIn(id('sym'), date, 'neck', 'evening', neck, when))
-      db.symptoms.push(checkIn(id('sym'), date, 'hands', 'evening', hands, when))
+      const neckRow = checkIn(id('sym'), date, 'neck', 'evening', neck, when)
+      const handsRow = checkIn(id('sym'), date, 'hands', 'evening', hands, when)
+      // From TINGLING_SINCE: how much of the day, which hand, what it came with (what he noticed)
+      if (isNewTingling(date)) {
+        if (hands === 0 && rt() < 0.6) handsRow.score = 2 // (the made-up holiday leaves few evenings to show)
+        if (hands === 5 && (longPcDay || rt() < 0.3)) handsRow.score = 8
+        const noticed = () => {
+          const t: string[] = []
+          if (bikeMin > 0 && rt() < 0.7) t.push('bike')
+          if (longPcDay && rt() < 0.8) t.push('desk')
+          if (rt() < 0.12) t.push('sleep')
+          if (ranToday && rt() < 0.3) t.push('run')
+          return t
+        }
+        if (handsRow.score > 0) {
+          handsRow.side = pick(rt, ['R', 'R', 'B', 'B', 'L'])
+          handsRow.triggers = noticed()
+        }
+        if (neck >= 5) neckRow.triggers = noticed()
+      }
+      db.symptoms.push(neckRow, handsRow)
     }
   }
 
@@ -632,7 +654,8 @@ function checkIn(id: string, date: string, body_area: string, timing: string, sc
     id,
     date,
     body_area,
-    side: body_area === 'arch' ? 'R' : 'C',
+    side: body_area === 'arch' ? 'R' : body_area === 'hands' ? null : 'C', // the hand was asked only later
+    triggers: [],
     timing,
     score,
     context: timing === 'next_morning' ? 'morning check-in' : body_area === 'hands' ? 'tingling' : 'evening check-in',

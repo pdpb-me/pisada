@@ -3,7 +3,9 @@ import { dueCheckIns } from '@/lib/check-ins'
 import { addDays, appDay, daysBetween, toISODate, weekOf } from '@/lib/dates'
 import { ladderStatus, num } from '@/lib/ladder'
 import { painBand, painLabel, painLevelFor } from '@/lib/pain'
-import { tinglingLabel } from '@/lib/tingling'
+import { TINGLING_SINCE, tinglingLabel, tinglingLevelFor, tinglingLevels, tinglingLong } from '@/lib/tingling'
+import { triggerCounts, triggerSentence } from '@/lib/triggers'
+import { compareDays } from '@/lib/trends'
 import { areaSummary, compare, dailySeries, headline, zoneLine } from '@/lib/trends'
 import { rightOfLeft, testDays } from '@/lib/tests'
 import { changeText, weightChange } from '@/lib/weight'
@@ -52,8 +54,22 @@ describe('pain and tingling words', () => {
     expect(painBand(4)).toBe('mid')
     expect(painBand(7)).toBe('high')
   })
-  it('tingling has three words', () => {
-    expect([0, 2, 5, 8].map(tinglingLabel)).toEqual(['None', 'A bit', 'A lot', 'A lot'])
+  it('tingling keeps the words of its day: three before the change, four from it', () => {
+    const before = '2026-11-10'
+    expect(TINGLING_SINCE).toBe('2026-11-13')
+    expect([0, 2, 5, 8].map((s) => tinglingLabel(s, before))).toEqual(['None', 'A bit', 'A lot', 'A lot'])
+    expect([0, 2, 5, 8].map((s) => tinglingLabel(s, TINGLING_SINCE))).toEqual(['None', 'Moments', 'Hours', 'Most of the day'])
+    expect([1, 3, 4, 6, 7, 10].map((s) => tinglingLabel(s, '2026-12-01'))).toEqual(['Moments', 'Moments', 'Hours', 'Hours', 'Most of the day', 'Most of the day'])
+    expect(tinglingLevels(before)).toHaveLength(3)
+    expect(tinglingLevels(TINGLING_SINCE).map((l) => l.score)).toEqual([0, 2, 5, 8])
+    expect(tinglingLevelFor(8, before)).toBe(5)
+    expect(tinglingLevelFor(8, TINGLING_SINCE)).toBe(8)
+  })
+  it('tingling bands: Hours is the middle band, Most of the day the high one', () => {
+    expect(tinglingLevels(TINGLING_SINCE).map((l) => l.band)).toEqual(['low', 'low', 'mid', 'high'])
+    expect(tinglingLong(5, TINGLING_SINCE)).toBe(true)
+    expect(tinglingLong(2, TINGLING_SINCE)).toBe(false)
+    expect(tinglingLong(5, '2026-11-10')).toBe(false) // A lot was not "Hours"
   })
 })
 
@@ -181,5 +197,32 @@ describe('video ratings', () => {
       ratings: { a: 'easy' },
       lastRatings: { a: { rating: 'keep', date: '2026-11-05' } },
     })
+  })
+})
+
+describe('what it came with', () => {
+  it('counts days per answer, most first, and says it plainly', () => {
+    const counts = triggerCounts([
+      { date: 'a', triggers: ['desk', 'bike'] },
+      { date: 'b', triggers: ['desk'] },
+      { date: 'c', triggers: ['sleep'] },
+      { date: 'd', triggers: [] },
+      { date: 'e', triggers: ['desk'] },
+    ])
+    expect(counts.map((c) => [c.label, c.days])).toEqual([['Desk', 3], ['Bike', 1], ['Sleep', 1]])
+    expect(triggerSentence(counts)).toBe('You said it came with: Desk on 3 days, Bike on 1, Sleep on 1.')
+    expect(triggerSentence(triggerCounts([{ date: 'a', triggers: ['run'] }]))).toBe('You said it came with: Run on 1 day.')
+    expect(triggerSentence([])).toBeNull()
+  })
+})
+
+describe('hand tingling compared by days', () => {
+  it('counts days with tingling, whatever the words were', () => {
+    // 6 of 7 days now, 2 of 7 before: worse
+    expect(compareDays([2, 2, 2, 2, 2, 2, 0], [2, 2, 0, 0, 0, 0, 0]).verdict).toBe('worse')
+    // the same days with tingling, stronger words: about the same
+    expect(compareDays([5, 8, 0, 0, 0, 0, 0], [2, 2, 0, 0, 0, 0, 0]).verdict).toBe('same')
+    expect(compareDays([0, 0, 0, 0, 0, null, null], [2, 2, 2, 0, 0, 0, 0]).verdict).toBe('better')
+    expect(compareDays([2, 2], [2, 2, 2]).verdict).toBe('none')
   })
 })

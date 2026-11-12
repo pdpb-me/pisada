@@ -52,13 +52,15 @@ What you know:
 
 Pain:
 - Always use the app's words, never numbers: None and Mild mean it's fine to load; Moderate means hold or back off; Severe and Unbearable mean stop.
-- The arch is his right foot. It is measured in the morning, at the first steps out of bed. Neck pain and hand tingling are measured in the evening, for the whole day: they come from the day (bike, long time at the computer, runs), not from the exercises. Hand tingling has its own words: None, A bit, A lot. Watch it together with the neck.
+- The arch is his right foot. It is measured in the morning, at the first steps out of bed. Neck pain and hand tingling are measured in the evening, for the whole day: they come from the day (bike, long time at the computer, runs), not from the exercises. Watch hand tingling together with the neck.
+- Hand tingling has its own words. From 13 Nov 2026 tingling is asked as how much of the day (None, Moments, Hours, Most of the day), with the hand (left, right or both) and what it came with (bike, desk, sleep, run, other; sleep means he woke up with it). Earlier answers used None, A bit, A lot: don't compare the two as if they were one scale; compare days with tingling, and from 13 Nov days at Hours or more.
+- When the neck was Moderate or worse, he can also say what it came with. What it came with is what he noticed: an answer is a lead, not a cause, and no answer is not a no.
 - Compare weeks, not single days.
 - You are not a doctor and you don't diagnose. If pain stays at Moderate or worse, or gets worse, suggest seeing a doctor or physiotherapist.
 
 Runs and the ladder:
 - His runs are run-walk sessions on a ladder of steps (get_run_ladder). Runs are at least 48 hours apart: never on the same day or on two days in a row.
-- A run is clean when the arch stayed None or Mild during it, and was back to normal the next morning. He says if a run was clean, in the app. Never guess it: if it is empty, ask.
+- A run is clean when the arch stayed None or Mild, and the next morning was no worse than the morning before the run. He says if a run was clean, in the app. Never guess it: if it is empty, ask.
 - Up one step only after 2 clean runs in a row. A niggle that lingers holds the step. Pain above Mild drops one step.
 - After a break (sick, a holiday, 7 days or more without a run) don't move up: suggest a step, often one lower, and say why.
 - Never change the ladder step unless he agrees. The app never moves it by itself either. A new step is always a proposal, like any other change.
@@ -194,7 +196,7 @@ const nothing = { type: 'object', properties: {}, additionalProperties: false }
 
 export const TOOLS = [
   { name: 'get_plan', description: `The planned sessions in a period of at most ${MAX_DAYS} days, each with its id and his log if there is one: status (done, partial, skipped), his note, pain during. A run also has run_step (the planned ladder step) and, once logged, run: the step he ran and whether it was clean (null = he has not said yet).`, input_schema: dates },
-  { name: 'get_check_ins', description: `His daily check-ins in a period of at most ${MAX_DAYS} days: the arch in the morning (first steps), the neck and hand tingling in the evening (the whole day).`, input_schema: dates },
+  { name: 'get_check_ins', description: `His daily check-ins in a period of at most ${MAX_DAYS} days: the arch in the morning (first steps), the neck and hand tingling in the evening (the whole day). Hands have hand (left, right, both; null when not asked) and came_with; the neck has came_with.`, input_schema: dates },
   { name: 'get_activities', description: `What he actually did in a period of at most ${MAX_DAYS} days. source intervals = from his watch (time, distance, heart rate, load); source manual = the app's row for a logged run (run_step, clean).`, input_schema: dates },
   { name: 'get_tests', description: 'The results of his tests, newest first, one row per side.', input_schema: nothing },
   { name: 'get_coach_notes', description: 'Your latest weekly notes to him: what you decided and how the week before went.', input_schema: nothing },
@@ -260,14 +262,19 @@ export function painWord(score: number) {
   return 'Unbearable'
 }
 
-// The app's words for hand tingling (src/lib/tingling.ts; a test keeps them the same)
-export function tinglingWord(score: number) {
+// The app's words for hand tingling (src/lib/tingling.ts; a test keeps them the same). The
+// question changed on TINGLING_SINCE: an answer keeps the words of its day.
+export const TINGLING_SINCE = '2026-11-13'
+export function tinglingWord(score: number, date: string) {
   if (score === 0) return 'None'
-  return score <= 3 ? 'A bit' : 'A lot'
+  if (date < TINGLING_SINCE) return score <= 3 ? 'A bit' : 'A lot'
+  return score <= 3 ? 'Moments' : score <= 6 ? 'Hours' : 'Most of the day'
 }
 
 // Hands are asked as tingling, everything else as pain
-const feeling = (area: string, score: number) => (area === 'hands' ? { tingling: tinglingWord(score) } : { pain: painWord(score) })
+const feeling = (area: string, score: number, date: string) => (area === 'hands' ? { tingling: tinglingWord(score, date) } : { pain: painWord(score) })
+
+const HAND: Record<string, string> = { L: 'left', R: 'right', B: 'both' }
 
 class BadInput extends Error {}
 
@@ -327,7 +334,7 @@ const READERS: Record<string, (db: Reader, input: Record<string, unknown>) => Pr
         log: log && {
           status: log.status,
           note: log.comment,
-          pain_during: (log.symptoms ?? []).filter((s) => s.timing === 'during').map((s) => ({ area: s.body_area, ...feeling(s.body_area, s.score) })),
+          pain_during: (log.symptoms ?? []).filter((s) => s.timing === 'during').map((s) => ({ area: s.body_area, ...feeling(s.body_area, s.score, String(session.date)) })),
         },
         // the app's run row: the step he ran, and whether the run was clean
         ...(isRun(session.kind) ? { run: run && { run_step: run.run_step, clean: run.clean } } : {}),
@@ -340,7 +347,7 @@ const READERS: Record<string, (db: Reader, input: Record<string, unknown>) => Pr
     const found = rows(
       await db
         .from('symptoms')
-        .select('date, timing, body_area, side, score')
+        .select('date, timing, body_area, side, score, triggers')
         .in('timing', ['next_morning', 'evening'])
         .is('session_log_id', null)
         .gte('date', from)
@@ -348,11 +355,14 @@ const READERS: Record<string, (db: Reader, input: Record<string, unknown>) => Pr
         .order('date')
         .order('timing', { ascending: false }),
     )
-    return found.map(({ score, timing, body_area, ...answer }) => ({
-      ...answer,
+    return found.map(({ score, timing, body_area, side, triggers, date }) => ({
+      date,
       when: timing === 'next_morning' ? 'morning' : 'evening',
       area: body_area,
-      ...feeling(String(body_area), score as number),
+      ...feeling(String(body_area), score as number, String(date)),
+      // the hands: which hand; the arch and neck keep their side (R, C)
+      ...(body_area === 'hands' ? { hand: HAND[String(side)] ?? null } : { side }),
+      ...(body_area === 'arch' ? {} : { came_with: (triggers as string[] | null) ?? [] }),
     }))
   },
 

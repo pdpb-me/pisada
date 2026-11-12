@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { asksTriggers } from '@/data/rules'
+import { TINGLING_SINCE } from '@/lib/tingling'
 import { buildWorld, snapshot } from '@/demo/simulate'
 import { SCENARIOS } from '@/demo/scenarios'
 
@@ -21,11 +23,25 @@ describe('the 12-week simulation', () => {
     expect(new Set(keys).size).toBe(keys.length)
   })
 
-  it('stores pain as the app does (0, 2, 5, 8, 10) and tingling as 0, 2, 5', () => {
+  it('stores pain as the app does (0, 2, 5, 8, 10) and tingling as 0, 2, 5 (then 0, 2, 5, 8)', () => {
     for (const s of world.symptoms) {
       expect([0, 2, 5, 8, 10]).toContain(s.score)
-      if (s.body_area === 'hands') expect([0, 2, 5]).toContain(s.score)
+      if (s.body_area === 'hands') expect(s.date >= TINGLING_SINCE ? [0, 2, 5, 8] : [0, 2, 5]).toContain(s.score)
     }
+  })
+
+  it('answers the new evening questions only from the change, as the app asks them', () => {
+    const evening = world.symptoms.filter((s) => s.timing === 'evening' && !s.session_log_id)
+    const hands = evening.filter((s) => s.body_area === 'hands')
+    for (const s of hands) {
+      if (s.date < TINGLING_SINCE || s.score === 0) expect(s.side).toBeNull()
+      else expect(['L', 'R', 'B']).toContain(s.side)
+    }
+    for (const s of evening) {
+      if (s.date < TINGLING_SINCE || !asksTriggers(s.body_area as 'neck' | 'hands', s.score)) expect(s.triggers).toEqual([])
+      for (const t of s.triggers) expect(['bike', 'desk', 'sleep', 'run', 'other']).toContain(t)
+    }
+    expect(hands.some((s) => s.date >= TINGLING_SINCE && s.side != null)).toBe(true)
   })
 
   it('plans every run with a ladder step that exists', () => {

@@ -1,6 +1,8 @@
 // The shapes the screens work with. Rows come from the tables in database.types.ts;
 // a few are joined or trimmed for one screen.
 import type { Tables } from '@/lib/database.types'
+import type { Hand } from '@/lib/tingling'
+import type { Trigger } from '@/lib/triggers'
 import type { VideoRating } from '@/lib/video-ratings'
 
 export type { VideoRating }
@@ -37,11 +39,15 @@ export type LastLog = { date: string } | null
 export type EveningArea = 'neck' | 'hands'
 
 // The day's two check-ins: morning (right arch at first steps, optional weight, and
-// whether yesterday's run was clean) and evening (neck and hand tingling over the day)
+// whether yesterday's run was clean) and evening (neck and hand tingling over the day, which
+// hand, and what each came with)
 export type CheckIns = {
   arch: number | null
   neck: number | null
   hands: number | null
+  hand: Hand | null // which hand tingled
+  neckTriggers: Trigger[]
+  handsTriggers: Trigger[]
   weight: number | null // kg
   run: { planSessionId: string | null; id: string; step: number | null; clean: boolean | null } | null // yesterday's logged run
 }
@@ -54,7 +60,7 @@ export type ChatMessage = { id: string; role: 'user' | 'coach'; text: string; cr
 // What the coach proposes: it changes the plan only if Pedro applies it
 export type Proposal = { id: string; summary: string; lines: string[]; status: string; created_at: string }
 
-export type TrendSymptom = { date: string; body_area: string; timing: string; score: number }
+export type TrendSymptom = { date: string; body_area: string; timing: string; score: number; triggers?: string[] }
 
 export type ProgressData = {
   today: string

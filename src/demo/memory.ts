@@ -2,12 +2,14 @@
 // database (src/demo/db.ts). It follows the same rules (src/data/rules.ts) and checks
 // the same limits as the database (supabase/migrations). No network.
 import type { Backend } from '@/data/api'
-import { check, checkInRow, checkInTiming, clearsOnStatus, happened, isRun, kindOf, LIMITS, pairWatch, ratingsFor, WATCH_SPORT } from '@/data/rules'
+import { check, checkDetails, checkInRow, checkInTiming, checkInUpdate, clearsOnStatus, happened, isRun, kindOf, LIMITS, pairWatch, ratingsFor, WATCH_SPORT } from '@/data/rules'
 import type { ChatMessage, CheckIns, DayDot, DaySession, WatchActivity } from '@/data/types'
 import type { Db } from '@/demo/db'
 import { DEMO_USER } from '@/demo/db'
 import { now } from '@/lib/clock'
 import { addDays, appDay, DAY_STARTS_AT } from '@/lib/dates'
+import { isHand } from '@/lib/tingling'
+import { isTrigger } from '@/lib/triggers'
 
 const byDateDesc = (a: { date: string }, b: { date: string }) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)
 const byDate = (a: { date: string }, b: { date: string }) => -byDateDesc(a, b)
@@ -62,6 +64,12 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
       .sort((a, b) => byDateDesc(a, b) || (a.created_at < b.created_at ? 1 : -1))
     return runs[0]?.run_step ?? 1
   }
+
+  // The hand of the latest tingling answer before this day that had one
+  const lastHand = (date: string) =>
+    db()
+      .symptoms.filter((s) => s.body_area === 'hands' && s.timing === 'evening' && !s.session_log_id && isHand(s.side) && s.date < date)
+      .sort(byDateDesc)[0]?.side ?? null
 
   const syncedAt = async () => db().sync_status.find((s) => s.source === 'intervals')?.synced_at ?? null
 
@@ -118,14 +126,19 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
     async checkIns(date) {
       await wait()
       const d = db()
-      const find = (area: string, timing: string) =>
-        d.symptoms.find((s) => s.date === date && s.body_area === area && s.timing === timing && !s.session_log_id)?.score ?? null
+      const row = (area: string, timing: string) => d.symptoms.find((s) => s.date === date && s.body_area === area && s.timing === timing && !s.session_log_id)
+      const find = (area: string, timing: string) => row(area, timing)?.score ?? null
+      const triggers = (area: string) => (row(area, 'evening')?.triggers ?? []).filter(isTrigger)
+      const hand = row('hands', 'evening')?.side
       const run = d.activities.find((a) => a.date === addDays(date, -1) && a.sport === 'run' && a.source !== 'intervals')
       const w = d.weights.find((x) => x.date === date)
       const result: CheckIns = {
         arch: find('arch', 'next_morning'),
         neck: find('neck', 'evening'),
         hands: find('hands', 'evening'),
+        hand: isHand(hand) ? hand : null,
+        neckTriggers: triggers('neck'),
+        handsTriggers: triggers('hands'),
         weight: w ? Number(w.kg) : null,
         run: run ? { id: run.id, planSessionId: run.plan_session_id, step: run.run_step, clean: run.clean } : null,
       }
@@ -167,7 +180,7 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
             (s) => !s.session_log_id && (s.timing === 'next_morning' || s.timing === 'evening') && s.date >= yearAgo && s.date <= today,
           )
           .sort(byDate)
-          .map(({ date, body_area, timing, score }) => ({ date, body_area, timing, score })),
+          .map(({ date, body_area, timing, score, triggers }) => ({ date, body_area, timing, score, triggers })),
         runs: d.activities
           .filter((a) => a.sport === 'run' && a.source !== 'intervals' && a.date <= today)
           .sort((a, b) => byDateDesc(a, b) || (a.created_at < b.created_at ? 1 : -1))
@@ -298,6 +311,7 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
           timing: 'during',
           score,
           context: null,
+          triggers: [],
           created_at: stamp(),
           user_id: DEMO_USER,
         })
@@ -391,8 +405,17 @@ export function createMemoryBackend(db: () => Db, options: { latencyMs?: () => n
         return
       }
       const existing = d.symptoms.find(match)
-      if (existing) existing.score = score
-      else d.symptoms.push({ ...checkInRow(date, area, score), id: newId(), session_log_id: null, created_at: stamp(), user_id: DEMO_USER })
+      const hand = area === 'hands' && score > 0 && !isHand(existing?.side) ? lastHand(date) : null
+      if (existing) Object.assign(existing, checkInUpdate(area, score, existing, hand))
+      else d.symptoms.push({ ...checkInRow(date, area, score, hand), id: newId(), session_log_id: null, created_at: stamp(), user_id: DEMO_USER })
+    },
+
+    async saveCheckInDetails(date, area, details) {
+      await wait()
+      const row = db().symptoms.find((s) => s.date === date && s.body_area === area && s.timing === 'evening' && !s.session_log_id)
+      if (!row) throw new Error('Answer the question first')
+      checkDetails(area, row.score, details)
+      Object.assign(row, details)
     },
 
     async saveClean(runLogId, clean) {

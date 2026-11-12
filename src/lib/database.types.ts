@@ -405,6 +405,7 @@ export type Database = {
           session_log_id: string | null
           side: string | null
           timing: string
+          triggers: string[]
           user_id: string
         }
         Insert: {
@@ -417,6 +418,7 @@ export type Database = {
           session_log_id?: string | null
           side?: string | null
           timing?: string
+          triggers?: string[]
           user_id?: string
         }
         Update: {
@@ -429,6 +431,7 @@ export type Database = {
           session_log_id?: string | null
           side?: string | null
           timing?: string
+          triggers?: string[]
           user_id?: string
         }
         Relationships: [

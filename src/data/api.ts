@@ -17,6 +17,8 @@ import type {
   VideoRating,
   WatchActivity,
 } from '@/data/types'
+import type { Hand } from '@/lib/tingling'
+import type { Trigger } from '@/lib/triggers'
 
 // Everything the app reads and writes, in its own words. Two implementations:
 // src/data/supabase.ts (the real app) and src/demo/memory.ts (the demo, made-up data).
@@ -60,6 +62,7 @@ export interface Backend {
   setRating(planSessionId: string, ytId: string, rating: VideoRating | null): Promise<void> // one per session and video; null removes it
   moveSession(planSessionId: string, date: string, slot: string): Promise<void>
   saveCheckIn(date: string, area: 'arch' | EveningArea, score: number | null): Promise<void>
+  saveCheckInDetails(date: string, area: EveningArea, details: { side?: Hand | null; triggers?: Trigger[] }): Promise<void> // which hand, what it came with: after the main answer
   saveClean(runLogId: string, clean: boolean | null): Promise<void>
   saveWeight(date: string, kg: number | null): Promise<void>
   syncNow(): Promise<{ count: number; synced_at: string }>

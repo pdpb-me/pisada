@@ -123,7 +123,7 @@ function Overview({ data, onOpen }: { data: ProgressData; onOpen: (s: Screen) =>
                 (['arch', 'neck'] as const).flatMap((a) => {
                   const l = summaries[a].latest
                   return l && l.score >= 5 && daysBetween(l.date, data.today) <= 2
-                    ? [`${AREAS[a].title} ${AREAS[a].label(l.score)} on ${weekdayShort(l.date)}.`]
+                    ? [`${AREAS[a].title} ${AREAS[a].label(l.score, l.date)} on ${weekdayShort(l.date)}.`]
                     : []
                 }),
               )
@@ -259,6 +259,7 @@ function WeekCard({ today }: { today: string }) {
 function AreaCard({ area, s, onOpen }: { area: AreaId; s: ReturnType<typeof areaSummary>; onOpen: () => void }) {
   const a = AREAS[area]
   const tingling = a.scale === 'tingling'
+  const today = s.series[s.series.length - 1].date
   return (
     <CardButton onClick={onOpen} label={`${a.title}: open the details`}>
       <CardTitle
@@ -270,16 +271,16 @@ function AreaCard({ area, s, onOpen }: { area: AreaId; s: ReturnType<typeof area
           <span className="flex items-center gap-2">
             <span className={cn('size-3 rounded-full', PAIN_DOT[painBand(tingling ? s.worst! : s.typical)])} aria-hidden />
             <span className="text-display font-semibold">
-              {tingling ? (s.badDays ? `${s.badDays} of ${s.answered} days` : 'None') : a.label(s.typical)}
+              {tingling ? (s.badDays ? `${s.badDays} of ${s.answered} days` : 'None') : a.label(s.typical, today)}
             </span>
           </span>
           <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
             {tingling ? 'Tingled, last 7 days' : 'Average, last 7 days'}
-            {!tingling && s.latest && a.label(s.latest.score) !== a.label(s.typical) && (
+            {!tingling && s.latest && a.label(s.latest.score, s.latest.date) !== a.label(s.typical, today) && (
               <>
                 <span aria-hidden>·</span> latest
                 <span className={cn('size-2 rounded-full', PAIN_DOT[painBand(s.latest.score)])} aria-hidden />
-                <span className="font-semibold text-foreground">{a.label(s.latest.score)}</span>({weekdayShort(s.latest.date)})
+                <span className="font-semibold text-foreground">{a.label(s.latest.score, s.latest.date)}</span>({weekdayShort(s.latest.date)})
               </>
             )}
           </span>
